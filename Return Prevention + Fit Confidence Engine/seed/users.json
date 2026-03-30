@@ -1,0 +1,60 @@
+{
+  "users": [
+    {
+      "id": "usr_alex_001",
+      "locale": "en-US",
+      "memory": {
+        "preferredSizeTokens": { "apparel": "M", "footwear": "US 9" },
+        "brandChartTrust": { "Northline": 0.82, "StrideLab": 0.74 },
+        "fitIntent": "regular",
+        "lastReturnReasons": ["SIZE_TOO_SMALL"],
+        "decayVersion": 3
+      },
+      "bodyProfile": { "chest_in": 40, "waist_in": 34, "height_cm": 178 },
+      "constraints": { "avoid": ["wool_itch"] }
+    },
+    {
+      "id": "usr_morgan_002",
+      "locale": "en-GB",
+      "memory": {
+        "preferredSizeTokens": { "footwear": "US 8.5", "apparel": "S" },
+        "brandChartTrust": { "Crag": 0.65 },
+        "fitIntent": "slim",
+        "lastReturnReasons": ["WIDTH_MISMATCH"]
+      },
+      "bodyProfile": { "foot_length_cm": 26.5, "width_code": "D" },
+      "constraints": {}
+    },
+    {
+      "id": "usr_jordan_003",
+      "locale": "en-US",
+      "memory": {
+        "preferredSizeTokens": { "furniture": "compact" },
+        "brandChartTrust": { "LoftLiving": 0.55 },
+        "fitIntent": "relaxed"
+      },
+      "bodyProfile": { "room_width_cm": 280 },
+      "constraints": { "mustHave": ["pet_friendly_fabric"] }
+    },
+    {
+      "id": "usr_rina_004",
+      "locale": "en-US",
+      "memory": {
+        "preferredSizeTokens": { "beauty": "50ml" },
+        "brandChartTrust": { "DermaLab": 0.9 },
+        "skinNotes": { "type": "combination", "sensitivity": "high" }
+      },
+      "constraints": { "avoid": ["fragrance", "essential_oils"] }
+    },
+    {
+      "id": "usr_dev_005",
+      "locale": "de-DE",
+      "memory": {
+        "preferredSizeTokens": { "travel_gear": "21in_carryon" },
+        "brandChartTrust": { "Jetline": 0.7 }
+      },
+      "bodyProfile": { "max_carry_kg": 8 },
+      "constraints": { "maxPrice": { "amount": "250.00", "currency": "EUR" } }
+    }
+  ]
+}

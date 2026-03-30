@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-surface-dark: #0a1628;
+  --color-surface-light: #fafbfc;
+  --color-confidence-from: #22c55e;
+  --color-confidence-to: #16a34a;
+  --color-caution: #f59e0b;
+  --color-risk-muted: #f87171;
+  --color-accent: #6366f1;
+
+  --shadow-sm: 0 1px 2px rgba(10, 22, 40, 0.06), 0 1px 3px rgba(10, 22, 40, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(10, 22, 40, 0.08),
+    0 10px 15px -3px rgba(10, 22, 40, 0.1);
+  --shadow-lg: 0 20px 25px -5px rgba(10, 22, 40, 0.1),
+    0 8px 10px -6px rgba(10, 22, 40, 0.08);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-surface-light text-slate-900 antialiased;
+}
+
+::selection {
+  @apply bg-indigo-100 text-indigo-950;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

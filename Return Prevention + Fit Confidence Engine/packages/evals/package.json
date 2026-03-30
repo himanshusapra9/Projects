@@ -1,0 +1,20 @@
+{
+  "name": "@fitconfidence/evals",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Offline evaluation harness for fit confidence and return risk",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "eval": "node dist/runner.js",
+    "test": "npm run build && npm run eval"
+  },
+  "dependencies": {
+    "@fitconfidence/config": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

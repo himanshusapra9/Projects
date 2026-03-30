@@ -1,0 +1,99 @@
+{
+  "fixtures": [
+    {
+      "id": "beauty-001",
+      "product": {
+        "id": "prod_moist_barrier_001",
+        "category": "beauty",
+        "title": "Barrier Repair Moisturizer",
+        "brand": "DermaLab"
+      },
+      "userContext": {
+        "measurements": { "shade_depth": 0.42, "skin_type": 1 }
+      },
+      "expected": {
+        "primarySizeLabel": "medium",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "beauty-002",
+      "product": {
+        "id": "prod_serum_vitamin_002",
+        "category": "beauty",
+        "title": "Vitamin C Serum",
+        "brand": "Lumen Skin"
+      },
+      "userContext": {
+        "measurements": { "shade_depth": 0.2 }
+      },
+      "expected": {
+        "primarySizeLabel": "light",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "beauty-003",
+      "product": {
+        "id": "prod_foundation_matte_003",
+        "category": "beauty",
+        "title": "Matte Foundation",
+        "brand": "Canvas"
+      },
+      "userContext": {
+        "measurements": { "shade_depth": 0.72 }
+      },
+      "expected": {
+        "primarySizeLabel": "deep",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "beauty-004",
+      "product": {
+        "id": "prod_spf_mineral_004",
+        "category": "beauty",
+        "title": "Mineral SPF 50",
+        "brand": "Solstice"
+      },
+      "userContext": {
+        "measurements": { "shade_depth": 0.5 }
+      },
+      "expected": {
+        "primarySizeLabel": "medium",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "beauty-005",
+      "product": {
+        "id": "prod_retinol_night_005",
+        "category": "beauty",
+        "title": "Encapsulated Retinol",
+        "brand": "Nightshift"
+      },
+      "userContext": {
+        "measurements": { "shade_depth": 0.28 }
+      },
+      "expected": {
+        "primarySizeLabel": "light",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    }
+  ]
+}

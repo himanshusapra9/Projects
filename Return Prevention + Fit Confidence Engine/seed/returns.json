@@ -1,0 +1,28 @@
+{
+  "returns": [
+    { "id": "ret_001", "orderId": "ord_1001", "productId": "prod_tee_organic_001", "variantId": "var_tee_S", "reasonCode": "SIZE_TOO_SMALL", "preventable": true, "notes": "Should have taken M." },
+    { "id": "ret_002", "orderId": "ord_1002", "productId": "prod_jacket_shell_002", "variantId": "var_jk_M", "reasonCode": "SIZE_TOO_LARGE", "preventable": true, "notes": "Layering thinner than expected." },
+    { "id": "ret_003", "orderId": "ord_1003", "productId": "prod_run_shoe_apex_001", "variantId": "var_apex_9", "reasonCode": "WIDTH_MISMATCH", "preventable": true, "notes": "Toe box tight." },
+    { "id": "ret_004", "orderId": "ord_1004", "productId": "prod_run_shoe_apex_001", "variantId": "var_apex_10", "reasonCode": "COMFORT_FIT", "preventable": true, "notes": "Heel slip after break-in." },
+    { "id": "ret_005", "orderId": "ord_1005", "productId": "prod_jeans_selvedge_004", "variantId": "var_jn_30_32", "reasonCode": "LENGTH_MISMATCH", "preventable": true, "notes": "Inseam too long vs chart." },
+    { "id": "ret_006", "orderId": "ord_1006", "productId": "prod_dress_wrap_003", "variantId": "var_dr_4", "reasonCode": "COLOR_NOT_AS_EXPECTED", "preventable": true, "notes": "Deeper red in person." },
+    { "id": "ret_007", "orderId": "ord_1007", "productId": "prod_sofa_sectional_001", "variantId": "var_sofa_3pc", "reasonCode": "DIMENSION_MISMATCH", "preventable": true, "notes": "Did not clear stairwell." },
+    { "id": "ret_008", "orderId": "ord_1008", "productId": "prod_moist_barrier_001", "variantId": "var_moist_50", "reasonCode": "SENSITIVITY_REACTION", "preventable": true, "notes": "Mild redness first week." },
+    { "id": "ret_009", "orderId": "ord_1009", "productId": "prod_serum_vitamin_002", "variantId": "var_serum_30", "reasonCode": "PERFORMANCE_MISMATCH", "preventable": false, "notes": "Did not see brightening." },
+    { "id": "ret_010", "orderId": "ord_1010", "productId": "prod_carryon_hardside_001", "variantId": "var_co_blk", "reasonCode": "DIMENSION_MISMATCH", "preventable": true, "notes": "Regional carrier bin smaller." },
+    { "id": "ret_011", "orderId": "ord_1011", "productId": "prod_boot_hiker_002", "variantId": "var_boot_10", "reasonCode": "COMFORT_FIT", "preventable": true, "notes": "Ankle rub until broken in." },
+    { "id": "ret_012", "orderId": "ord_1012", "productId": "prod_dress_oxford_003", "variantId": "var_ox_8", "reasonCode": "SIZE_TOO_SMALL", "preventable": true, "notes": "Cap toe pressure." },
+    { "id": "ret_013", "orderId": "ord_1013", "productId": "prod_chair_lounge_002", "variantId": "var_chair_nat", "reasonCode": "COLOR_NOT_AS_EXPECTED", "preventable": true, "notes": "Boucle lighter than photo." },
+    { "id": "ret_014", "orderId": "ord_1014", "productId": "prod_backpack_commute_002", "variantId": "var_bp_gry", "reasonCode": "PERFORMANCE_MISMATCH", "preventable": true, "notes": "Laptop sleeve tight for 16\"." },
+    { "id": "ret_015", "orderId": "ord_1015", "productId": "prod_suit_wool_005", "variantId": "var_suit_40R", "reasonCode": "CHANGED_MIND", "preventable": false, "notes": "Event cancelled." },
+    { "id": "ret_016", "orderId": "ord_1016", "productId": "prod_tee_organic_001", "variantId": "var_tee_L", "reasonCode": "SIZE_TOO_LARGE", "preventable": true, "notes": "Oversized drape." },
+    { "id": "ret_017", "orderId": "ord_1017", "productId": "prod_earbuds_anc_001", "variantId": "var_eb_blk", "reasonCode": "COMPATIBILITY_MISMATCH", "preventable": true, "notes": "Multipoint flaky with work laptop." },
+    { "id": "ret_018", "orderId": "ord_1018", "productId": "prod_desk_standing_003", "variantId": "var_desk_blk", "reasonCode": "QUALITY_DEFECT", "preventable": false, "notes": "Motor noise on one leg." },
+    { "id": "ret_019", "orderId": "ord_1019", "productId": "prod_watch_steel_001", "variantId": "var_watch_40", "reasonCode": "CHANGED_MIND", "preventable": false, "notes": "Gift duplicate." },
+    { "id": "ret_020", "orderId": "ord_1020", "productId": "prod_jacket_shell_002", "variantId": "var_jk_S", "reasonCode": "MATERIAL_FEEL_MISMATCH", "preventable": true, "notes": "Crinklier than expected." },
+    { "id": "ret_021", "orderId": "ord_1021", "productId": "prod_dress_wrap_003", "variantId": "var_dr_6", "reasonCode": "SIZE_TOO_LARGE", "preventable": true, "notes": "Waist roomy." },
+    { "id": "ret_022", "orderId": "ord_1022", "productId": "prod_moist_barrier_001", "variantId": "var_moist_100", "reasonCode": "TEXTURE_MISMATCH", "preventable": true, "notes": "Too rich for summer." },
+    { "id": "ret_023", "orderId": "ord_1023", "productId": "prod_run_shoe_apex_001", "variantId": "var_apex_95", "reasonCode": "PERFORMANCE_MISMATCH", "preventable": true, "notes": "Not enough cushion for marathon." },
+    { "id": "ret_024", "orderId": "ord_1024", "productId": "prod_carryon_hardside_001", "variantId": "var_co_nvy", "reasonCode": "CHANGED_MIND", "preventable": false, "notes": "Trip postponed." }
+  ]
+}

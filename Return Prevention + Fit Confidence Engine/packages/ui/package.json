@@ -1,0 +1,24 @@
+{
+  "name": "@fitconfidence/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Design tokens and headless-style React primitives",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "node -e \"console.log('no unit tests in ui package')\""
+  },
+  "peerDependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "typescript": "^5.4.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

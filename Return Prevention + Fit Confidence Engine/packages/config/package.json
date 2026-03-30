@@ -1,0 +1,16 @@
+{
+  "name": "@fitconfidence/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Category rules, thresholds, and system constants for the Fit Confidence Engine",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "tsc --noEmit",
+    "test": "node -e \"console.log('no unit tests in config package')\""
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

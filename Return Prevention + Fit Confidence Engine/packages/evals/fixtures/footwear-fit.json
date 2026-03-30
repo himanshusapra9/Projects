@@ -1,0 +1,214 @@
+{
+  "fixtures": [
+    {
+      "id": "footwear-001",
+      "product": {
+        "id": "prod_run_shoe_apex_001",
+        "category": "footwear",
+        "title": "Apex Runner",
+        "brand": "StrideLab"
+      },
+      "userContext": {
+        "measurements": { "brannock_us": 9, "foot_width": 102 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 9",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85,
+        "acceptableAlternatives": ["good_alt"]
+      }
+    },
+    {
+      "id": "footwear-002",
+      "product": {
+        "id": "prod_boot_hiker_002",
+        "category": "footwear",
+        "title": "Hiker GTX Boot",
+        "brand": "Crag"
+      },
+      "userContext": {
+        "measurements": { "us_size": 10.5, "width_code": 2 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 10.5",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "footwear-003",
+      "product": {
+        "id": "prod_dress_oxford_003",
+        "category": "footwear",
+        "title": "Cap-Toe Oxford",
+        "brand": "Maison Step"
+      },
+      "userContext": {
+        "measurements": { "brannock_us": 8.5 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 8.5",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "footwear-004",
+      "product": {
+        "id": "prod_trail_shoe_004",
+        "category": "footwear",
+        "title": "Trail Shield",
+        "brand": "Ridgeway"
+      },
+      "userContext": {
+        "measurements": { "foot_length_cm": 25.4, "foot_width": 98 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 8",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "footwear-005",
+      "product": {
+        "id": "prod_sneaker_lifestyle_005",
+        "category": "footwear",
+        "title": "Court Classic",
+        "brand": "UrbanStep"
+      },
+      "userContext": {
+        "measurements": { "brannock_us": 11 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 11",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "footwear-006",
+      "product": {
+        "id": "prod_flat_ballet_006",
+        "category": "footwear",
+        "title": "Ballet Flat",
+        "brand": "Lisse"
+      },
+      "userContext": {
+        "measurements": { "brannock_us": 7.5, "foot_width": 94 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 7.5",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "footwear-007",
+      "product": {
+        "id": "prod_sandal_sport_007",
+        "category": "footwear",
+        "title": "Sport Sandal",
+        "brand": "RiverRock"
+      },
+      "userContext": {
+        "measurements": { "foot_length_cm": 27.2 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 9",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "footwear-008",
+      "product": {
+        "id": "prod_work_boot_008",
+        "category": "footwear",
+        "title": "Steel Toe Work Boot",
+        "brand": "FoundryBoot"
+      },
+      "userContext": {
+        "measurements": { "brannock_us": 10, "width_code": 3 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 10",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "footwear-009",
+      "product": {
+        "id": "prod_slipon_knit_009",
+        "category": "footwear",
+        "title": "Knit Slip-On",
+        "brand": "Ease"
+      },
+      "userContext": {
+        "measurements": { "us_size": 9.5 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 9.5",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "footwear-010",
+      "product": {
+        "id": "prod_cleat_soccer_010",
+        "category": "footwear",
+        "title": "FG Soccer Cleat",
+        "brand": "Pitch"
+      },
+      "userContext": {
+        "measurements": { "brannock_us": 8, "foot_length_cm": 26 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 8",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "footwear-011",
+      "product": {
+        "id": "prod_walker_comfort_011",
+        "category": "footwear",
+        "title": "Comfort Walker",
+        "brand": "StrideWell"
+      },
+      "userContext": {
+        "measurements": { "brannock_us": 12 }
+      },
+      "expected": {
+        "primarySizeLabel": "US 12",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    }
+  ]
+}

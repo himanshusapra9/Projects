@@ -1,0 +1,217 @@
+{
+  "fixtures": [
+    {
+      "id": "apparel-001",
+      "product": {
+        "id": "prod_tee_organic_001",
+        "category": "apparel",
+        "title": "Organic Cotton Tee",
+        "brand": "Northline",
+        "attributes": { "fabric": "jersey", "stretch": "medium" }
+      },
+      "userContext": {
+        "measurements": { "chest_in": 40, "waist_in": 34 }
+      },
+      "expected": {
+        "primarySizeLabel": "M",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85,
+        "acceptableAlternatives": ["good_alt"],
+        "relevantClarificationIds": ["q_width", "q_use_case"]
+      }
+    },
+    {
+      "id": "apparel-002",
+      "product": {
+        "id": "prod_jacket_shell_002",
+        "category": "apparel",
+        "title": "3L Shell Jacket",
+        "brand": "AlpineWorks"
+      },
+      "userContext": {
+        "measurements": { "chest_in": 36, "inseam_in": 32 }
+      },
+      "expected": {
+        "primarySizeLabel": "S",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85,
+        "acceptableAlternatives": ["good_alt"]
+      }
+    },
+    {
+      "id": "apparel-003",
+      "product": {
+        "id": "prod_dress_wrap_003",
+        "category": "apparel",
+        "title": "Wrap Midi Dress",
+        "brand": "Lumen"
+      },
+      "userContext": {
+        "measurements": { "chest_in": 42 }
+      },
+      "expected": {
+        "primarySizeLabel": "L",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "apparel-004",
+      "product": {
+        "id": "prod_jeans_selvedge_004",
+        "category": "apparel",
+        "title": "Selvedge Straight Jean",
+        "brand": "Railhouse"
+      },
+      "userContext": {
+        "measurements": { "chest_in": 44, "waist_in": 36, "inseam_in": 30 }
+      },
+      "expected": {
+        "primarySizeLabel": "L",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "apparel-005",
+      "product": {
+        "id": "prod_suit_wool_005",
+        "category": "apparel",
+        "title": "Wool Two-Piece Suit",
+        "brand": "Atelier Noir"
+      },
+      "userContext": {
+        "measurements": { "chest_in": 46, "waist_in": 38, "inseam_in": 31 }
+      },
+      "expected": {
+        "primarySizeLabel": "XL",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "apparel-006",
+      "product": {
+        "id": "prod_knit_crew_006",
+        "category": "apparel",
+        "title": "Merino Crew",
+        "brand": "Baselayer Co"
+      },
+      "userContext": {
+        "measurements": { "chest_cm": 96 }
+      },
+      "expected": {
+        "primarySizeLabel": "M",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "apparel-007",
+      "product": {
+        "id": "prod_shorts_chino_007",
+        "category": "apparel",
+        "title": "Chino Short",
+        "brand": "Harbor"
+      },
+      "userContext": {
+        "measurements": { "chest_in": 39, "waist_in": 33 }
+      },
+      "expected": {
+        "primarySizeLabel": "M",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "apparel-008",
+      "product": {
+        "id": "prod_hoodie_heavy_008",
+        "category": "apparel",
+        "title": "Heavyweight Hoodie",
+        "brand": "Foundry"
+      },
+      "userContext": {
+        "measurements": { "chest_in": 48 }
+      },
+      "expected": {
+        "primarySizeLabel": "XL",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "apparel-009",
+      "product": {
+        "id": "prod_shirt_linen_009",
+        "category": "apparel",
+        "title": "Linen Camp Shirt",
+        "brand": "Tropic"
+      },
+      "userContext": {
+        "measurements": { "chest_in": 34 }
+      },
+      "expected": {
+        "primarySizeLabel": "S",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "apparel-010",
+      "product": {
+        "id": "prod_base_layer_010",
+        "category": "apparel",
+        "title": "Compression Base Layer",
+        "brand": "Kinetic"
+      },
+      "userContext": {
+        "measurements": { "chest_in": 41, "waist_in": 34, "inseam_in": 29, "torso_length": 72 }
+      },
+      "expected": {
+        "primarySizeLabel": "M",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "apparel-011",
+      "product": {
+        "id": "prod_polo_tech_011",
+        "category": "apparel",
+        "title": "Tech Polo",
+        "brand": "Fairway"
+      },
+      "userContext": {
+        "measurements": { "chest_in": 43, "waist_in": 35 }
+      },
+      "expected": {
+        "primarySizeLabel": "L",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    }
+  ]
+}

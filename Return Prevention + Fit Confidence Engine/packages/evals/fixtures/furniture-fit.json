@@ -1,0 +1,99 @@
+{
+  "fixtures": [
+    {
+      "id": "furniture-001",
+      "product": {
+        "id": "prod_sofa_sectional_001",
+        "category": "furniture",
+        "title": "Modular Sectional",
+        "brand": "LoftLiving"
+      },
+      "userContext": {
+        "measurements": { "room_width_cm": 320, "doorway_min_cm": 76 }
+      },
+      "expected": {
+        "primarySizeLabel": "standard",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "furniture-002",
+      "product": {
+        "id": "prod_chair_lounge_002",
+        "category": "furniture",
+        "title": "Lounge Chair",
+        "brand": "StudioForm"
+      },
+      "userContext": {
+        "measurements": { "room_width_cm": 210 }
+      },
+      "expected": {
+        "primarySizeLabel": "compact",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "furniture-003",
+      "product": {
+        "id": "prod_desk_standing_003",
+        "category": "furniture",
+        "title": "Standing Desk",
+        "brand": "WorkSurface"
+      },
+      "userContext": {
+        "measurements": { "ceiling_height_cm": 260, "room_width_cm": 280 }
+      },
+      "expected": {
+        "primarySizeLabel": "standard",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "furniture-004",
+      "product": {
+        "id": "prod_table_dining_004",
+        "category": "furniture",
+        "title": "Oak Dining Table",
+        "brand": "Harvest"
+      },
+      "userContext": {
+        "measurements": { "room_width_cm": 240 }
+      },
+      "expected": {
+        "primarySizeLabel": "compact",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    },
+    {
+      "id": "furniture-005",
+      "product": {
+        "id": "prod_bed_frame_005",
+        "category": "furniture",
+        "title": "Platform Bed",
+        "brand": "RestHaus"
+      },
+      "userContext": {
+        "measurements": { "room_width_cm": 300, "stairwell_width": 85 }
+      },
+      "expected": {
+        "primarySizeLabel": "standard",
+        "fitConfidenceMin": 0.45,
+        "fitConfidenceMax": 0.98,
+        "returnRiskMin": 0.02,
+        "returnRiskMax": 0.85
+      }
+    }
+  ]
+}

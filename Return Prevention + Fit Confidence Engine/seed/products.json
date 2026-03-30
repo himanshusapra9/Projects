@@ -1,0 +1,205 @@
+{
+  "products": [
+    {
+      "id": "prod_tee_organic_001",
+      "category": "apparel",
+      "subcategory": "tops",
+      "title": "Organic Cotton Tee",
+      "brand": "Northline",
+      "description": "Midweight jersey, garment-dyed, preshrunk.",
+      "attributes": { "fabric": "organic_cotton", "stretch": "medium", "fit_family": "regular" },
+      "variants": [
+        { "id": "var_tee_S", "sku": "N-Tee-S-BLK", "sizeLabel": "S", "price": { "amount": "34.00", "currency": "USD" } },
+        { "id": "var_tee_M", "sku": "N-Tee-M-BLK", "sizeLabel": "M", "price": { "amount": "34.00", "currency": "USD" } },
+        { "id": "var_tee_L", "sku": "N-Tee-L-BLK", "sizeLabel": "L", "price": { "amount": "34.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_jacket_shell_002",
+      "category": "apparel",
+      "subcategory": "outerwear",
+      "title": "3L Waterproof Shell",
+      "brand": "AlpineWorks",
+      "attributes": { "waterproof_rating": "20000mm", "hood": "helmet_compatible" },
+      "variants": [
+        { "id": "var_jk_S", "sku": "AW-SH-S", "sizeLabel": "S", "price": { "amount": "289.00", "currency": "USD" } },
+        { "id": "var_jk_M", "sku": "AW-SH-M", "sizeLabel": "M", "price": { "amount": "289.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_dress_wrap_003",
+      "category": "apparel",
+      "subcategory": "dresses",
+      "title": "Wrap Midi Dress",
+      "brand": "Lumen",
+      "attributes": { "length": "midi", "neckline": "wrap" },
+      "variants": [
+        { "id": "var_dr_4", "sku": "LU-WRAP-4", "sizeLabel": "4", "price": { "amount": "148.00", "currency": "USD" } },
+        { "id": "var_dr_6", "sku": "LU-WRAP-6", "sizeLabel": "6", "price": { "amount": "148.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_jeans_selvedge_004",
+      "category": "apparel",
+      "subcategory": "bottoms",
+      "title": "Selvedge Straight Jean",
+      "brand": "Railhouse",
+      "attributes": { "rise": "mid", "inseam_options": [28, 30, 32, 34] },
+      "variants": [
+        { "id": "var_jn_30_32", "sku": "RH-SS-30-32", "sizeLabel": "30×32", "price": { "amount": "198.00", "currency": "USD" } },
+        { "id": "var_jn_32_32", "sku": "RH-SS-32-32", "sizeLabel": "32×32", "price": { "amount": "198.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_suit_wool_005",
+      "category": "apparel",
+      "subcategory": "tailoring",
+      "title": "Wool Two-Piece Suit",
+      "brand": "Atelier Noir",
+      "attributes": { "canvas": "half", "lapel": "notch" },
+      "variants": [
+        { "id": "var_suit_40R", "sku": "AN-SUIT-40R", "sizeLabel": "40R", "price": { "amount": "895.00", "currency": "USD" } },
+        { "id": "var_suit_42R", "sku": "AN-SUIT-42R", "sizeLabel": "42R", "price": { "amount": "895.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_run_shoe_apex_001",
+      "category": "footwear",
+      "subcategory": "running",
+      "title": "Apex Runner",
+      "brand": "StrideLab",
+      "attributes": { "drop_mm": 8, "weight_g": 248, "surface": "road" },
+      "variants": [
+        { "id": "var_apex_9", "sku": "SL-APX-9", "sizeLabel": "US 9", "price": { "amount": "140.00", "currency": "USD" } },
+        { "id": "var_apex_95", "sku": "SL-APX-9.5", "sizeLabel": "US 9.5", "price": { "amount": "140.00", "currency": "USD" } },
+        { "id": "var_apex_10", "sku": "SL-APX-10", "sizeLabel": "US 10", "price": { "amount": "140.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_boot_hiker_002",
+      "category": "footwear",
+      "subcategory": "boots",
+      "title": "Hiker GTX Boot",
+      "brand": "Crag",
+      "attributes": { "waterproof": "gore_tex", "shank": "nylon" },
+      "variants": [
+        { "id": "var_boot_10", "sku": "CR-HK-10", "sizeLabel": "US 10", "price": { "amount": "220.00", "currency": "USD" } },
+        { "id": "var_boot_105", "sku": "CR-HK-10.5", "sizeLabel": "US 10.5", "price": { "amount": "220.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_dress_oxford_003",
+      "category": "footwear",
+      "subcategory": "dress",
+      "title": "Cap-Toe Oxford",
+      "brand": "Maison Step",
+      "attributes": { "last": "almond", "sole": "leather" },
+      "variants": [
+        { "id": "var_ox_8", "sku": "MS-OX-8", "sizeLabel": "US 8", "price": { "amount": "395.00", "currency": "USD" } },
+        { "id": "var_ox_85", "sku": "MS-OX-8.5", "sizeLabel": "US 8.5", "price": { "amount": "395.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_sofa_sectional_001",
+      "category": "furniture",
+      "subcategory": "living",
+      "title": "Modular Sectional",
+      "brand": "LoftLiving",
+      "attributes": { "orientation": "LHF", "fabric": "performance_velvet" },
+      "variants": [
+        { "id": "var_sofa_3pc", "sku": "LL-SEC-3", "sizeLabel": "3-piece", "price": { "amount": "2499.00", "currency": "USD" } },
+        { "id": "var_sofa_4pc", "sku": "LL-SEC-4", "sizeLabel": "4-piece", "price": { "amount": "2899.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_chair_lounge_002",
+      "category": "furniture",
+      "subcategory": "living",
+      "title": "Lounge Chair",
+      "brand": "StudioForm",
+      "attributes": { "frame": "walnut", "upholstery": "boucle" },
+      "variants": [
+        { "id": "var_chair_nat", "sku": "SF-LC-NAT", "sizeLabel": "natural", "price": { "amount": "1295.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_desk_standing_003",
+      "category": "furniture",
+      "subcategory": "office",
+      "title": "Standing Desk",
+      "brand": "WorkSurface",
+      "attributes": { "width_cm": 140, "depth_cm": 70, "motor": "dual" },
+      "variants": [
+        { "id": "var_desk_blk", "sku": "WS-SD-BLK", "sizeLabel": "140×70", "price": { "amount": "749.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_moist_barrier_001",
+      "category": "beauty",
+      "subcategory": "skincare",
+      "title": "Barrier Repair Moisturizer",
+      "brand": "DermaLab",
+      "attributes": { "skin_types": ["dry", "sensitive"], "fragrance_free": true },
+      "variants": [
+        { "id": "var_moist_50", "sku": "DL-BR-50", "sizeLabel": "50ml", "price": { "amount": "36.00", "currency": "USD" } },
+        { "id": "var_moist_100", "sku": "DL-BR-100", "sizeLabel": "100ml", "price": { "amount": "58.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_serum_vitamin_002",
+      "category": "beauty",
+      "subcategory": "skincare",
+      "title": "Vitamin C Serum",
+      "brand": "Lumen Skin",
+      "attributes": { "vitamin_c_pct": 15, "ph": 3.2 },
+      "variants": [
+        { "id": "var_serum_30", "sku": "LS-VC-30", "sizeLabel": "30ml", "price": { "amount": "42.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_carryon_hardside_001",
+      "category": "travel_gear",
+      "subcategory": "luggage",
+      "title": "Hardside Carry-On",
+      "brand": "Jetline",
+      "attributes": { "linear_in": 45, "weight_lb": 7.2, "wheels": "4" },
+      "variants": [
+        { "id": "var_co_blk", "sku": "JL-CO-BLK", "sizeLabel": "21\"", "price": { "amount": "195.00", "currency": "USD" } },
+        { "id": "var_co_nvy", "sku": "JL-CO-NVY", "sizeLabel": "21\"", "price": { "amount": "195.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_backpack_commute_002",
+      "category": "travel_gear",
+      "subcategory": "bags",
+      "title": "Commute Backpack",
+      "brand": "UrbanPort",
+      "attributes": { "laptop_in": 16, "capacity_L": 28 },
+      "variants": [
+        { "id": "var_bp_gry", "sku": "UP-BP-GRY", "sizeLabel": "one size", "price": { "amount": "128.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_watch_steel_001",
+      "category": "accessories",
+      "subcategory": "watches",
+      "title": "Steel Field Watch",
+      "brand": "Meridian",
+      "attributes": { "case_mm": 40, "lug_to_lug_mm": 48 },
+      "variants": [
+        { "id": "var_watch_40", "sku": "MR-FW-40", "sizeLabel": "40mm", "price": { "amount": "275.00", "currency": "USD" } }
+      ]
+    },
+    {
+      "id": "prod_earbuds_anc_001",
+      "category": "electronics",
+      "subcategory": "audio",
+      "title": "ANC Earbuds",
+      "brand": "Pulse",
+      "attributes": { "codec": "LC3", "battery_h": 7 },
+      "variants": [
+        { "id": "var_eb_blk", "sku": "PL-EB-BLK", "sizeLabel": "standard", "price": { "amount": "179.00", "currency": "USD" } }
+      ]
+    }
+  ]
+}
