@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #FAFAF9;
+  --color-foreground: #1C1917;
+  --color-muted: #57534E;
+  --color-muted-foreground: #A8A29E;
+  --color-border: #E7E5E4;
+  --color-border-subtle: #F5F5F4;
+  --color-accent: #18181B;
+  --color-accent-foreground: #FFFFFF;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #1C1917;
+  --color-badge-best: #18181B;
+  --color-badge-value: #EFF6FF;
+  --color-badge-safe: #ECFDF5;
+  --color-badge-rated: #FFFBEB;
+  --color-success: #059669;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.03), 0 0 0 1px rgb(0 0 0 / 0.02);
+  --shadow-card-hover: 0 8px 24px -4px rgb(0 0 0 / 0.08), 0 0 0 1px rgb(0 0 0 / 0.03);
+  --shadow-best-pick: 0 0 0 2px #18181B, 0 8px 24px -4px rgb(0 0 0 / 0.12);
+}
+
+body {
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease both;
+}

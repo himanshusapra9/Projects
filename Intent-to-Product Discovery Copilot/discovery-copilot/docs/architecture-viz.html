@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discovery Copilot — Product Architecture</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAFAF9;
+  --card: #FFFFFF;
+  --fg: #1C1917;
+  --muted: #57534E;
+  --dim: #A8A29E;
+  --border: #E7E5E4;
+  --border-subtle: #F5F5F4;
+  --accent: #18181B;
+  --accent-fg: #FFFFFF;
+  --emerald: #059669;
+  --amber: #D97706;
+  --blue: #2563EB;
+  --violet: #6D28D9;
+  --rose: #DC2626;
+  --radius: 12px;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.03), 0 0 0 1px rgb(0 0 0 / 0.02);
+  --shadow-hover: 0 8px 24px -4px rgb(0 0 0 / 0.08), 0 0 0 1px rgb(0 0 0 / 0.03);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: 'Inter', -apple-system, sans-serif; -webkit-font-smoothing: antialiased; line-height: 1.6; font-feature-settings: "cv02", "cv03", "cv04", "cv11"; }
+.container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+/* Header */
+header { padding: 80px 0 48px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 999px; background: var(--border-subtle); font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 16px; }
+h1 { font-size: 48px; font-weight: 700; letter-spacing: -0.035em; line-height: 1.08; color: var(--fg); }
+h1 span { color: var(--dim); }
+.subtitle { font-size: 17px; color: var(--muted); margin-top: 12px; max-width: 540px; line-height: 1.6; }
+
+/* Nav */
+nav { display: flex; gap: 6px; margin-top: 32px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+nav button { background: none; border: none; padding: 8px 14px; border-radius: 8px; font-family: inherit; font-size: 13px; font-weight: 500; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+nav button:hover { background: var(--border-subtle); color: var(--fg); }
+nav button.active { background: var(--accent); color: var(--accent-fg); }
+
+/* Sections */
+section { padding: 48px 0; display: none; }
+section.visible { display: block; }
+h2 { font-size: 28px; font-weight: 700; letter-spacing: -0.025em; }
+h3 { font-size: 15px; font-weight: 600; margin: 28px 0 12px; }
+p { font-size: 14px; color: var(--muted); margin-bottom: 12px; }
+
+/* Cards grid */
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin: 24px 0; }
+@media (max-width: 900px) { .grid-3, .grid-2 { grid-template-columns: 1fr; } }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow-card); transition: all 0.2s; }
+.card:hover { box-shadow: var(--shadow-hover); }
+.card h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.card p { font-size: 13px; color: var(--muted); margin: 0; }
+.card-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 12px; }
+
+/* Read More / Collapsible */
+.read-more { margin: 24px 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--card); }
+.read-more-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: none; border: none; font-family: inherit; font-size: 14px; font-weight: 600; color: var(--fg); cursor: pointer; transition: background 0.15s; }
+.read-more-toggle:hover { background: var(--border-subtle); }
+.read-more-toggle .arrow { transition: transform 0.2s; font-size: 12px; color: var(--dim); }
+.read-more-toggle.open .arrow { transform: rotate(180deg); }
+.read-more-content { display: none; padding: 0 20px 20px; }
+.read-more-content.open { display: block; animation: fadeIn 0.3s; }
+.read-more-label { font-size: 11px; font-weight: 500; color: var(--dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 24px 0; }
+.stat { text-align: center; padding: 20px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+.stat .value { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.stat .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+@media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+th { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+td { color: var(--muted); }
+
+/* Code */
+code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: var(--border-subtle); padding: 2px 6px; border-radius: 4px; color: var(--violet); }
+pre { background: var(--accent); color: #e4e4e7; border-radius: 10px; padding: 16px; overflow-x: auto; margin: 12px 0; font-size: 12px; line-height: 1.6; }
+pre code { background: none; padding: 0; color: inherit; }
+
+/* Pipeline */
+.pipeline { display: flex; gap: 0; overflow-x: auto; padding: 20px 0; margin: 16px 0; }
+.pipe-step { display: flex; align-items: center; flex-shrink: 0; }
+.pipe-node { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 100px; text-align: center; cursor: pointer; transition: all 0.15s; }
+.pipe-node:hover { border-color: var(--accent); box-shadow: var(--shadow-hover); }
+.pipe-node .num { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--emerald); font-weight: 500; }
+.pipe-node .name { font-size: 12px; font-weight: 600; color: var(--fg); margin-top: 2px; }
+.pipe-node .type { font-size: 10px; color: var(--dim); margin-top: 2px; }
+.pipe-arrow { color: var(--dim); padding: 0 4px; font-size: 14px; }
+
+/* Feature bars */
+.feat-bar { display: grid; grid-template-columns: 140px 1fr 50px; align-items: center; gap: 10px; margin-bottom: 6px; }
+.feat-bar .lab { font-size: 12px; color: var(--muted); text-align: right; }
+.feat-bar .bg { height: 20px; background: var(--border-subtle); border-radius: 4px; overflow: hidden; }
+.feat-bar .fill { height: 100%; border-radius: 4px; }
+.feat-bar .wt { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--emerald); }
+
+/* Timeline */
+.timeline { position: relative; margin: 24px 0 24px 24px; padding-left: 24px; border-left: 2px solid var(--border); }
+.tl-item { position: relative; margin-bottom: 20px; padding-left: 16px; }
+.tl-item::before { content: ''; position: absolute; left: -31px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.tl-item .week { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--emerald); }
+.tl-item .title { font-size: 14px; font-weight: 600; margin: 2px 0; }
+.tl-item .desc { font-size: 12px; color: var(--muted); }
+
+/* Example list */
+.example-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; cursor: pointer; transition: all 0.15s; }
+.example-item:hover { box-shadow: var(--shadow-hover); }
+.example-header { display: flex; justify-content: space-between; align-items: center; }
+.example-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--emerald); font-weight: 500; }
+.example-query { font-size: 14px; font-weight: 500; margin-left: 8px; }
+.example-conf { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.example-detail { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+.example-detail.open { display: block; }
+.example-detail p { font-size: 13px; margin-bottom: 8px; }
+.example-detail strong { color: var(--fg); }
+
+/* Animations */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">✦ Architecture Blueprint</div>
+    <h1>Discovery Copilot <span>Architecture</span></h1>
+    <p class="subtitle">Complete product architecture for an AI-powered decision engine that converts vague shopping intent into ranked, explainable product recommendations.</p>
+    <nav id="nav">
+      <button class="active" data-s="overview">Overview</button>
+      <button data-s="product">Product</button>
+      <button data-s="experience">Experience</button>
+      <button data-s="decision">Decision Engine</button>
+      <button data-s="integration">Integration</button>
+      <button data-s="design">Design System</button>
+      <button data-s="testing">Testing</button>
+      <button data-s="roadmap">Roadmap</button>
+      <button data-s="examples">Examples</button>
+      <button data-s="risks">Risks</button>
+    </nav>
+  </header>
+
+  <!-- ========== OVERVIEW ========== -->
+  <section id="overview" class="visible">
+    <h2>Executive Summary</h2>
+    <p>Discovery Copilot is a decision-oriented AI search product for e-commerce. Not a chatbot. Not semantic search. A system that takes a vague shopping query and returns: a best pick, ranked alternatives, evidence-grounded explanations, confidence scoring, and tradeoff disclosure.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="value">13</div><div class="label">Pipeline stages</div></div>
+      <div class="stat"><div class="value">16</div><div class="label">Ranking features</div></div>
+      <div class="stat"><div class="value">&lt;$0.02</div><div class="label">Per query cost</div></div>
+      <div class="stat"><div class="value">2</div><div class="label">Business models</div></div>
+    </div>
+
+    <div class="grid-3">
+      <div class="card"><div class="card-icon" style="background:#ECFDF5">🎯</div><h4>Decisions, not lists</h4><p>Returns a best pick with rationale, not just ranked results. "Here's what to buy and why."</p></div>
+      <div class="card"><div class="card-icon" style="background:#EFF6FF">🔌</div><h4>API + Hosted</h4><p>Embed via API/SDK, or use our hosted search page. Works with Shopify, BigCommerce, custom stores.</p></div>
+      <div class="card"><div class="card-icon" style="background:#F5F3FF">🏢</div><h4>Multi-tenant</h4><p>Built for multiple merchants from day one. Tenant isolation, per-merchant config, catalog sync.</p></div>
+      <div class="card"><div class="card-icon" style="background:#FFFBEB">↩️</div><h4>Return-risk aware</h4><p>Factors in return data to recommend products customers keep. Flags fit risk and expectation gaps.</p></div>
+      <div class="card"><div class="card-icon" style="background:#FEF2F2">💡</div><h4>Explainable</h4><p>Every recommendation grounded in reviews, specs, or return data. No hallucinated claims.</p></div>
+      <div class="card"><div class="card-icon" style="background:#F5F5F4">❓</div><h4>Minimal questions</h4><p>Asks 0–3 high-value clarifying questions. Never wastes the user's time.</p></div>
+    </div>
+
+    <!-- Read More: Architecture -->
+    <div class="read-more">
+      <button class="read-more-toggle" onclick="toggleReadMore(this)">
+        <span><span class="read-more-label">Deep dive</span><br>System Architecture &amp; Components</span>
+        <span class="arrow">▼</span>
+      </button>
+      <div class="read-more-content" id="arch-detail">
+        <p>Clean separation between retrieval, ranking, and generation. Each component independently testable and replaceable.</p>
+        <table>
+          <thead><tr><th>Component</th><th>Role</th><th>MVP Tech</th><th>Latency</th></tr></thead>
+          <tbody>
+            <tr><td>Frontend</td><td>Search UI, decision cards, clarification</td><td>Next.js 15 + Framer Motion</td><td>—</td></tr>
+            <tr><td>API Gateway</td><td>Routes, validation, tenant auth</td><td>Express + Zod</td><td>&lt;10ms</td></tr>
+            <tr><td>Orchestrator</td><td>13-stage decision pipeline</td><td>TypeScript</td><td>Coord</td></tr>
+            <tr><td>Intent Parser</td><td>NLU → structured ParsedIntent</td><td>GPT-4o-mini JSON mode</td><td>~400ms</td></tr>
+            <tr><td>Clarification Planner</td><td>Decide whether to ask questions</td><td>Rule engine + LLM</td><td>~200ms</td></tr>
+            <tr><td>Retrieval Service</td><td>Hybrid BM25 + vector search</td><td>ES + pgvector + RRF</td><td>~150ms</td></tr>
+            <tr><td>Ranking Engine</td><td>16-feature weighted scorer</td><td>Deterministic</td><td>&lt;50ms</td></tr>
+            <tr><td>Explanation Engine</td><td>Evidence-grounded per-product explanations</td><td>GPT-4o-mini (parallel)</td><td>~500ms</td></tr>
+            <tr><td>Memory Service</td><td>Cross-session preferences</td><td>Postgres + Redis</td><td>~20ms</td></tr>
+            <tr><td>Guardrails</td><td>Safety checks: hallucination, medical, price</td><td>Rule-based</td><td>&lt;10ms</td></tr>
+          </tbody>
+        </table>
+        <p><strong>Total P95 latency target: &lt;3 seconds.</strong> Achieved through parallelization (retrieval + ranking in parallel with clarification assessment), fast models (GPT-4o-mini), and caching.</p>
+      </div>
+    </div>
+
+    <!-- Read More: AI Pipeline -->
+    <div class="read-more">
+      <button class="read-more-toggle" onclick="toggleReadMore(this)">
+        <span><span class="read-more-label">Deep dive</span><br>13-Stage AI Pipeline</span>
+        <span class="arrow">▼</span>
+      </button>
+      <div class="read-more-content">
+        <p>Each query flows through a deterministic-first pipeline. LLM calls isolated to stages requiring language understanding. Stages 2, 5, 7, 8, 11, 12 are pure rules — fast, cheap, debuggable.</p>
+        <div class="pipeline">
+          <div class="pipe-step"><div class="pipe-node"><div class="num">01</div><div class="name">Understand</div><div class="type">LLM · 400ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">02</div><div class="name">Extract</div><div class="type">Rules · &lt;10ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">03</div><div class="name">Detect</div><div class="type">Rules · &lt;10ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">04</div><div class="name">Clarify?</div><div class="type">Hybrid · 200ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">05</div><div class="name">Plan</div><div class="type">Rules · &lt;10ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">06</div><div class="name">Retrieve</div><div class="type">Search · 150ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">07</div><div class="name">Filter</div><div class="type">Rules · &lt;10ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">08</div><div class="name">Rank</div><div class="type">Rules · &lt;50ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">09</div><div class="name">Decide</div><div class="type">Rules · &lt;10ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">10</div><div class="name">Explain</div><div class="type">LLM · 500ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">11</div><div class="name">Confidence</div><div class="type">Rules · &lt;10ms</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">12</div><div class="name">Memory</div><div class="type">Async</div></div><div class="pipe-arrow">→</div></div>
+          <div class="pipe-step"><div class="pipe-node"><div class="num">13</div><div class="name">Follow-up</div><div class="type">LLM · 400ms</div></div></div>
+        </div>
+        <p><strong>Total cost per query: ~$0.013–0.018.</strong> Only 3–4 LLM calls per request. Stages 7–9 and 11 are completely deterministic.</p>
+      </div>
+    </div>
+
+    <!-- Read More: Ranking Engine -->
+    <div class="read-more">
+      <button class="read-more-toggle" onclick="toggleReadMore(this)">
+        <span><span class="read-more-label">Deep dive</span><br>Ranking Engine &amp; Feature Weights</span>
+        <span class="arrow">▼</span>
+      </button>
+      <div class="read-more-content" id="ranking-detail">
+        <p>Baseline weighted-sum scorer with 16 features. Intentionally simple so it can be replaced with a learned model (LambdaMART) without changing the interface.</p>
+        <div id="feat-bars"></div>
+        <h3>Scoring formula</h3>
+        <pre><code>final_score = Σ (feature_i × weight_i)
+
+// Diversity re-ranking:
+selected = MMR_select(scored, max_same_brand=2, min_price_spread=0.2)
+
+// Decision selection:
+best_pick = selected[0]
+alternatives = selected[1..5]
+
+// Confidence drives UX:
+if confidence > 0.7  → show confidently
+if confidence 0.4–0.7 → show + suggest refinement
+if confidence < 0.4  → lead with clarifying question</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== PRODUCT ========== -->
+  <section id="product">
+    <h2>Product Definition</h2>
+    <p><strong>Mission:</strong> Make "what should I buy?" answerable by AI — with evidence, confidence, and honesty.</p>
+    <p><strong>Core promise:</strong> The user enters a shopping need in natural language. The system returns a decision-quality recommendation, not just a list of results.</p>
+
+    <h3>Decision output format</h3>
+    <pre><code>{
+  "decision": {
+    "bestPick": { ... },
+    "alternatives": [ ... ],
+    "rationale": "Prioritized comfort + low return risk for standing use case",
+    "tradeoffSummary": "Best Pick is $20 more but has 2x better return rate",
+    "missingInformation": ["shoe size", "budget"]
+  },
+  "confidence": { "overall": 0.87, "recommendation": "high_confidence" },
+  "suggestedRefinements": ["Under $100", "Prefer leather"]
+}</code></pre>
+
+    <h3>Business models</h3>
+    <div class="grid-2">
+      <div class="card">
+        <h4>API / Embedded mode</h4>
+        <p>Merchants integrate via REST API or JS SDK. Full control over UI. Single POST /api/v1/decide endpoint returns the complete decision.</p>
+        <p style="margin-top:8px;font-size:12px;color:var(--emerald)">Best for: custom storefronts, mobile apps, headless commerce</p>
+      </div>
+      <div class="card">
+        <h4>Hosted / SaaS mode</h4>
+        <p>Managed search page with merchant branding. Drop-in widget. Analytics dashboard. Deploy in a day with just a product feed.</p>
+        <p style="margin-top:8px;font-size:12px;color:var(--blue)">Best for: Shopify stores, SMBs, rapid deployment</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== EXPERIENCE ========== -->
+  <section id="experience">
+    <h2>Core User Experience</h2>
+    <p>The UX is structured as: Search input → Decision display. Not a chat. The primary interface is a search bar that returns a decision card — visually dominant best pick, with alternatives below.</p>
+
+    <h3>Flow by user type</h3>
+    <table>
+      <thead><tr><th>User</th><th>Flow</th><th>Clarification</th></tr></thead>
+      <tbody>
+        <tr><td>First-time visitor</td><td>Query → Decision with explanations</td><td>0–1 questions max</td></tr>
+        <tr><td>Repeat logged-in user</td><td>Memory-enriched → personalized ranking</td><td>Fewer questions (memory fills gaps)</td></tr>
+        <tr><td>High ambiguity query</td><td>1–2 inline questions → then decision</td><td>e.g., "a couch" → "What size room?"</td></tr>
+        <tr><td>Gift shopper</td><td>Recipient profiling + budget → decision</td><td>"What's he into?" + budget question</td></tr>
+        <tr><td>Fit-sensitive query</td><td>Decision + prominent size/fit warnings</td><td>"What size?" if not specified</td></tr>
+      </tbody>
+    </table>
+
+    <h3>What appears above the fold</h3>
+    <p>1. Query acknowledgment ("Best products for comfortable shoes for standing all day")<br>
+    2. Confidence indicator (High / Moderate / Low)<br>
+    3. Best Pick card (large, visually dominant, with explanation)<br>
+    4. Top 2–3 alternatives visible without scrolling<br>
+    5. Decision rationale sidebar (desktop) or inline (mobile)</p>
+  </section>
+
+  <!-- ========== DECISION ENGINE ========== -->
+  <section id="decision">
+    <h2>Decision Engine Design</h2>
+    <p>The core differentiator. This is not search → rank → display. This is: understand → plan → retrieve → rank → <strong>decide</strong> → explain.</p>
+
+    <h3>13 stages</h3>
+    <table>
+      <thead><tr><th>#</th><th>Stage</th><th>Type</th><th>Latency</th><th>Cost</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Query Understanding</td><td>LLM</td><td>400ms</td><td>$0.003</td></tr>
+        <tr><td>2</td><td>Intent Extraction</td><td>Rules</td><td>&lt;10ms</td><td>$0</td></tr>
+        <tr><td>3</td><td>Ambiguity Detection</td><td>Rules</td><td>&lt;10ms</td><td>$0</td></tr>
+        <tr><td>4</td><td>Clarification Decision</td><td>Hybrid</td><td>200ms</td><td>$0.002</td></tr>
+        <tr><td>5</td><td>Retrieval Plan</td><td>Rules</td><td>&lt;10ms</td><td>$0</td></tr>
+        <tr><td>6</td><td>Candidate Retrieval</td><td>Search</td><td>150ms</td><td>$0</td></tr>
+        <tr><td>7</td><td>Filtering</td><td>Rules</td><td>&lt;10ms</td><td>$0</td></tr>
+        <tr><td>8</td><td>Ranking</td><td>Rules</td><td>&lt;50ms</td><td>$0</td></tr>
+        <tr><td>9</td><td>Decision Selection</td><td>Rules</td><td>&lt;10ms</td><td>$0</td></tr>
+        <tr><td>10</td><td>Explanation Generation</td><td>LLM</td><td>500ms</td><td>$0.008</td></tr>
+        <tr><td>11</td><td>Confidence Scoring</td><td>Rules</td><td>&lt;10ms</td><td>$0</td></tr>
+        <tr><td>12</td><td>Memory Update</td><td>Async</td><td>—</td><td>$0.003</td></tr>
+        <tr><td>13</td><td>Follow-up Handling</td><td>LLM</td><td>400ms</td><td>$0.003</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Clarification strategy</h3>
+    <p>6-factor weighted decision framework. Score &lt; 0.3 → show results. 0.3–0.5 → show + refine. 0.5–0.7 → ask 1–2 questions. &gt; 0.7 → ask 2–3 questions first.</p>
+    <table>
+      <thead><tr><th>Factor</th><th>Weight</th></tr></thead>
+      <tbody>
+        <tr><td>Ambiguity (1 − confidence)</td><td>0.25</td></tr>
+        <tr><td>Attribute sensitivity (size/fit/skin)</td><td>0.20</td></tr>
+        <tr><td>Consequence of mismatch</td><td>0.20</td></tr>
+        <tr><td>Catalog breadth</td><td>0.15</td></tr>
+        <tr><td>Budget uncertainty</td><td>0.10</td></tr>
+        <tr><td>Confidence spread</td><td>0.10</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Override:</strong> After 2 turns without showing products → ALWAYS show results.</p>
+  </section>
+
+  <!-- ========== INTEGRATION ========== -->
+  <section id="integration">
+    <h2>Integration Strategy</h2>
+    <p>Designed for easy adoption. Minimal required inputs. Progressive value unlock as merchants provide more data.</p>
+
+    <h3>Integration tiers</h3>
+    <table>
+      <thead><tr><th>Tier</th><th>Data Required</th><th>Quality</th><th>Setup Time</th></tr></thead>
+      <tbody>
+        <tr><td style="color:var(--emerald);font-weight:600">Basic</td><td>Product catalog (name, price, category, description)</td><td>Good — keyword + semantic search, basic ranking</td><td>1 day</td></tr>
+        <tr><td style="color:var(--blue);font-weight:600">Intermediate</td><td>+ Reviews + Availability</td><td>Better — review evidence, stock filtering, sentiment</td><td>3–5 days</td></tr>
+        <tr><td style="color:var(--violet);font-weight:600">Advanced</td><td>+ Returns data + Purchase events + User identity</td><td>Best — return-risk scoring, memory, personalization</td><td>1–2 weeks</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Fast integration paths</h3>
+    <div class="grid-2">
+      <div class="card">
+        <h4>1-Day: Hosted Widget</h4>
+        <p>1. Create tenant account<br>2. Upload JSON product feed<br>3. Embed &lt;script&gt; tag<br>4. Live.</p>
+      </div>
+      <div class="card">
+        <h4>1-Week: API Integration</h4>
+        <p>1. Create tenant + API key<br>2. Set up catalog sync webhook<br>3. Integrate POST /decide endpoint<br>4. Build custom UI<br>5. Add feedback tracking</p>
+      </div>
+    </div>
+
+    <h3>Platform adapters</h3>
+    <p>Shopify: App with automatic product sync via Storefront API.<br>
+    BigCommerce: Catalog webhook + embedded widget.<br>
+    Custom: JSON feed upload, REST API, or CSV import.</p>
+  </section>
+
+  <!-- ========== DESIGN SYSTEM ========== -->
+  <section id="design">
+    <h2>Design System</h2>
+    <p>Premium commerce meets AI clarity. Inspired by Apple clarity, Linear polish, Stripe sharpness. Avoids: chatbot aesthetic, enterprise density, template-marketplace look.</p>
+
+    <h3>Color palette</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+      <div style="width:60px;height:40px;border-radius:8px;background:#FAFAF9;border:1px solid #E7E5E4" title="#FAFAF9 Background"></div>
+      <div style="width:60px;height:40px;border-radius:8px;background:#FFFFFF;border:1px solid #E7E5E4" title="#FFFFFF Card"></div>
+      <div style="width:60px;height:40px;border-radius:8px;background:#1C1917" title="#1C1917 Foreground"></div>
+      <div style="width:60px;height:40px;border-radius:8px;background:#57534E" title="#57534E Muted"></div>
+      <div style="width:60px;height:40px;border-radius:8px;background:#18181B" title="#18181B Accent"></div>
+      <div style="width:60px;height:40px;border-radius:8px;background:#059669" title="#059669 Success"></div>
+      <div style="width:60px;height:40px;border-radius:8px;background:#D97706" title="#D97706 Warning"></div>
+      <div style="width:60px;height:40px;border-radius:8px;background:#2563EB" title="#2563EB Info"></div>
+      <div style="width:60px;height:40px;border-radius:8px;background:#6D28D9" title="#6D28D9 Violet"></div>
+      <div style="width:60px;height:40px;border-radius:8px;background:#F59E0B" title="#F59E0B Rating star"></div>
+    </div>
+
+    <h3>Typography</h3>
+    <table>
+      <thead><tr><th>Scale</th><th>Size</th><th>Weight</th><th>Usage</th></tr></thead>
+      <tbody>
+        <tr><td>Hero</td><td>48–56px</td><td>700</td><td>Landing page headline</td></tr>
+        <tr><td>Section</td><td>28–32px</td><td>700</td><td>Section headings</td></tr>
+        <tr><td>Card title</td><td>18px</td><td>600</td><td>Product names</td></tr>
+        <tr><td>Body</td><td>14–15px</td><td>400</td><td>Descriptions, explanations</td></tr>
+        <tr><td>Caption</td><td>12–13px</td><td>500</td><td>Badges, metadata, evidence</td></tr>
+        <tr><td>Micro</td><td>10–11px</td><td>500</td><td>Labels, timestamps</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Spacing &amp; Radius</h3>
+    <p>4px base unit. Spacing scale: 4, 8, 12, 16, 20, 24, 32, 48, 64, 80, 96.<br>
+    Border radius: 6px (small), 8px (medium), 12px (large/cards), 16px (hero), 9999px (pills).</p>
+
+    <h3>Shadows</h3>
+    <p><strong>Card:</strong> <code>0 1px 3px rgb(0 0 0 / 0.03), 0 0 0 1px rgb(0 0 0 / 0.02)</code><br>
+    <strong>Card hover:</strong> <code>0 8px 24px -4px rgb(0 0 0 / 0.08), 0 0 0 1px rgb(0 0 0 / 0.03)</code><br>
+    <strong>Best Pick:</strong> <code>0 0 0 2px #18181B, 0 8px 24px -4px rgb(0 0 0 / 0.12)</code></p>
+
+    <h3>Motion</h3>
+    <p>Easing: <code>cubic-bezier(0.2, 0, 0, 1)</code> — iOS-like deceleration.<br>
+    Duration: 200ms default, 300ms for layout shifts, 500ms for page transitions.<br>
+    Framer Motion stagger: 60ms between siblings, 100ms delay start.</p>
+  </section>
+
+  <!-- ========== TESTING ========== -->
+  <section id="testing">
+    <h2>Testing Strategy</h2>
+    <p>32 test cases across 10 categories. Testing is a first-class product requirement, not an afterthought.</p>
+
+    <table>
+      <thead><tr><th>Category</th><th>Count</th><th>Examples</th></tr></thead>
+      <tbody>
+        <tr><td>Intent & Clarification</td><td>6</td><td>Vague query triggers questions; clear query returns immediately; budget respected</td></tr>
+        <tr><td>Ranking</td><td>6</td><td>Return-risk penalty; diversity constraints; cold-start handling; gift recipient effect</td></tr>
+        <tr><td>Explanation</td><td>2</td><td>Evidence grounding; no hallucinated claims</td></tr>
+        <tr><td>Guardrails</td><td>3</td><td>Medical claims blocked; age restrictions; price consistency</td></tr>
+        <tr><td>Integration</td><td>4</td><td>Widget loads; tenant auth; tenant isolation; catalog schema validation</td></tr>
+        <tr><td>UX & Visual</td><td>4</td><td>Long text rendering; mobile layout; tablet compare; no-result fallback</td></tr>
+        <tr><td>Latency</td><td>1</td><td>P95 &lt; 3 seconds</td></tr>
+        <tr><td>Accessibility</td><td>1</td><td>WCAG 2.1 AA compliance</td></tr>
+        <tr><td>Data</td><td>2</td><td>Partial data ingestion; missing reviews handling</td></tr>
+        <tr><td>Multi-tenant</td><td>2</td><td>Tenant isolation; per-tenant ranking overrides</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:12px">All 32 test cases are defined in <code>packages/evals/src/test-cases.ts</code> with structured assertions.</p>
+  </section>
+
+  <!-- ========== ROADMAP ========== -->
+  <section id="roadmap">
+    <h2>MVP Roadmap</h2>
+
+    <h3>48-Hour Prototype</h3>
+    <table>
+      <thead><tr><th>Hours</th><th>Deliverable</th></tr></thead>
+      <tbody>
+        <tr><td>0–4</td><td>Monorepo + types + Express /decide endpoint</td></tr>
+        <tr><td>4–8</td><td>OpenAI intent parsing + hardcoded product data</td></tr>
+        <tr><td>8–16</td><td>Ranking scorer + explanation generation</td></tr>
+        <tr><td>16–24</td><td>Premium Next.js frontend (landing + search + best pick card)</td></tr>
+        <tr><td>24–36</td><td>Clarification flow + multi-turn + alternatives</td></tr>
+        <tr><td>36–48</td><td>Polish, 5 example queries working, record demo</td></tr>
+      </tbody>
+    </table>
+
+    <h3>12-Week Production Plan</h3>
+    <div class="timeline">
+      <div class="tl-item"><div class="week">Week 1–2</div><div class="title">Foundation</div><div class="desc">Monorepo, types, DB schema, API skeleton, tenant model. Demo: health check + type compilation.</div></div>
+      <div class="tl-item"><div class="week">Week 3–4</div><div class="title">Core AI Pipeline</div><div class="desc">Intent parser, clarification planner, all prompts, LLM abstraction. Demo: parse 10 queries → structured decisions.</div></div>
+      <div class="tl-item"><div class="week">Week 5–6</div><div class="title">Retrieval + Ranking</div><div class="desc">ES index, pgvector, hybrid retrieval, 16-feature scorer, diversity. Demo: query → ranked products.</div></div>
+      <div class="tl-item"><div class="week">Week 7–8</div><div class="title">Decision + Explanation</div><div class="desc">Full orchestration, explanations, guardrails, confidence. Demo: end-to-end /decide API.</div></div>
+      <div class="tl-item"><div class="week">Week 9–10</div><div class="title">Premium Frontend</div><div class="desc">Landing page, search, best pick card, alternatives, clarification UI, decision rationale. Demo: investor-ready prototype.</div></div>
+      <div class="tl-item"><div class="week">Week 11</div><div class="title">Evaluation + Multi-tenant</div><div class="desc">Offline eval pipeline, 32 test cases, tenant onboarding, catalog ingestion. Demo: first merchant integration.</div></div>
+      <div class="tl-item"><div class="week">Week 12</div><div class="title">Launch Prep</div><div class="desc">Load testing, security, deployment, monitoring, documentation. Production-ready MVP.</div></div>
+    </div>
+  </section>
+
+  <!-- ========== EXAMPLES ========== -->
+  <section id="examples">
+    <h2>Example Flows</h2>
+    <p>12 realistic shopping scenarios with full decision outputs.</p>
+    <div id="example-list"></div>
+  </section>
+
+  <!-- ========== RISKS ========== -->
+  <section id="risks">
+    <h2>Risks &amp; Open Questions</h2>
+    <table>
+      <thead><tr><th>Risk</th><th>Impact</th><th>Early Warning</th><th>Mitigation</th></tr></thead>
+      <tbody>
+        <tr><td>Weak merchant catalog quality</td><td>High</td><td>Catalog health score &lt; 0.5</td><td>Graceful degradation; required minimum fields</td></tr>
+        <tr><td>Sparse review coverage</td><td>Medium</td><td>Explanation grounding rate drops</td><td>Category averages; "limited data" disclosure</td></tr>
+        <tr><td>Latency from multi-stage pipeline</td><td>High</td><td>P95 &gt; 3 seconds</td><td>Parallelization; fast models; caching</td></tr>
+        <tr><td>Over-questioning users</td><td>High</td><td>Clarification answer rate &lt; 50%</td><td>Strict turn limits; bias toward showing results</td></tr>
+        <tr><td>Explanation/ranking mismatch</td><td>Medium</td><td>User feedback: "why this?"</td><td>Explanation generator sees ranking scores</td></tr>
+        <tr><td>LLM hallucination</td><td>High</td><td>Guardrail violation rate &gt; 1%</td><td>Evidence grounding; post-generation checks</td></tr>
+        <tr><td>Premium design degrading in implementation</td><td>Medium</td><td>Visual regression tests fail</td><td>Design tokens; component library; review process</td></tr>
+        <tr><td>Onboarding friction</td><td>High</td><td>1-day integration takes &gt; 3 days</td><td>Drop-in widget; pre-built adapters</td></tr>
+        <tr><td>Category generalization</td><td>Medium</td><td>NDCG drops in new categories</td><td>Per-category eval datasets; configurable weights</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Final Recommendation</h3>
+    <div class="card" style="margin-top:16px;border-left:3px solid var(--accent)">
+      <h4>Start with API mode + one design-conscious merchant</h4>
+      <p style="margin-top:8px"><strong>Fastest path to demo:</strong> 48-hour prototype with hardcoded catalog, 5 example queries, premium UI.<br>
+      <strong>Best business model to start:</strong> API-first (proves the decision engine), add hosted mode in Phase 2.<br>
+      <strong>Build first:</strong> Decision API (/decide endpoint) + premium Best Pick card + 10 example queries.<br>
+      <strong>Postpone:</strong> Memory, multi-tenant admin, hosted dashboard, review intelligence.<br>
+      <strong>Biggest tech risk:</strong> Latency — multi-stage pipeline must stay under 3 seconds.<br>
+      <strong>Biggest product risk:</strong> Decision quality — if the "best pick" is wrong, trust evaporates instantly.<br>
+      <strong>Biggest UX risk:</strong> Clarification fatigue — ask too many questions and users leave.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+// Nav
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('section').forEach(s => s.classList.remove('visible'));
+    document.getElementById(btn.dataset.s).classList.add('visible');
+  });
+});
+
+// Read More toggle
+function toggleReadMore(btn) {
+  btn.classList.toggle('open');
+  const content = btn.nextElementSibling;
+  content.classList.toggle('open');
+}
+
+// Feature bars
+const features = [
+  { name: 'Semantic relevance', w: 0.18, c: '#2563EB' },
+  { name: 'Use-case fit', w: 0.16, c: '#059669' },
+  { name: 'Taxonomy fit', w: 0.10, c: '#6D28D9' },
+  { name: 'Price fit', w: 0.10, c: '#18181B' },
+  { name: 'Review sentiment', w: 0.10, c: '#F59E0B' },
+  { name: 'Return risk', w: 0.08, c: '#DC2626' },
+  { name: 'Lexical relevance', w: 0.08, c: '#2563EB' },
+  { name: 'Review volume', w: 0.04, c: '#F59E0B' },
+  { name: 'Brand affinity', w: 0.04, c: '#6D28D9' },
+  { name: 'Popularity', w: 0.03, c: '#059669' },
+  { name: 'Conversion prior', w: 0.03, c: '#059669' },
+  { name: 'Availability', w: 0.03, c: '#18181B' },
+  { name: 'Novelty bonus', w: 0.01, c: '#DC2626' },
+  { name: 'Recency', w: 0.01, c: '#2563EB' },
+  { name: 'Business rules', w: 0.01, c: '#D97706' },
+];
+const fb = document.getElementById('feat-bars');
+if (fb) features.forEach(f => {
+  fb.innerHTML += `<div class="feat-bar"><div class="lab">${f.name}</div><div class="bg"><div class="fill" style="width:${(f.w/0.18)*100}%;background:${f.c}"></div></div><div class="wt">${f.w.toFixed(2)}</div></div>`;
+});
+
+// Examples
+const examples = [
+  { q: 'Comfortable shoes for standing all day', conf: 0.87, cl: false, explain: 'Cushioned insole rated best for all-day standing by 412 reviewers. 4% return rate.', mem: 'useCasePreference: standing_all_day' },
+  { q: 'Gift for a minimalist dad under $80', conf: 0.45, cl: true, cq: "What's he into? (Outdoors / Tech / Cooking / Style)", explain: 'Slim leather wallet — clean design, no bulk. 4.8★ from 500+ reviews.', mem: 'No update — gift purchase' },
+  { q: 'Quiet vacuum for pet hair', conf: 0.70, cl: false, explain: '65 dB — quieter than conversation. HEPA filter, pet hair brush roll.', mem: 'hasPets: true' },
+  { q: 'Sofa for small apartment, easy to clean', conf: 0.50, cl: true, cq: 'How many people should it seat?', explain: '72" loveseat — performance fabric, 89% report no staining with kids/pets.', mem: 'sizePreference: compact' },
+  { q: 'Natural-looking foundation for oily skin', conf: 0.55, cl: true, cq: 'Shade range? (Fair / Light / Medium / Tan / Deep)', explain: 'Oil-free, 8+ hour wear without shine. Dermatologist-tested, fragrance-free.', mem: 'skinType: oily' },
+  { q: 'Carry-on luggage for frequent work travel', conf: 0.65, cl: false, explain: 'Meets all airline requirements. TSA laptop pocket. 4.7★ from frequent flyers.', mem: 'useCasePreference: business_travel' },
+  { q: 'Blender for smoothies, not too loud', conf: 0.72, cl: false, explain: 'Quietest in class at 68 dB. Crushes ice in 30 seconds. 4.6★ for smoothies.', mem: 'useCasePreference: smoothies' },
+  { q: 'Thoughtful baby gift for first-time parents', conf: 0.40, cl: true, cq: 'Budget? (Under $30 / $30–60 / $60–100)', explain: 'Organic cotton gift set — GOTS-certified. 97% say recipient loved it.', mem: 'No update — gift' },
+  { q: 'Wedding guest outfit, outdoor summer', conf: 0.30, cl: true, cq: 'Dress code? Your style preference?', explain: 'Linen blend — breathable for outdoor. Machine washable. Photographs well.', mem: 'No update — occasion' },
+  { q: 'Ergonomic desk chair for long work days', conf: 0.60, cl: false, explain: 'Adjustable lumbar, 4-way armrests. #1 for 8+ hour sitters. 12-year warranty.', mem: 'useCasePreference: office_work' },
+  { q: 'Easy-to-clean dining table for family', conf: 0.50, cl: true, cq: 'How many seats? (4 / 6 / 8+)', explain: 'Ceramic top — wipes clean instantly. Scratch-resistant. Seats 6.', mem: 'familySize: noted' },
+  { q: 'Coffee maker for small kitchen', conf: 0.68, cl: false, explain: 'Compact 8" footprint. Makes 12 cups. Programmable timer. Under $80.', mem: 'kitchenSize: small' },
+];
+const el = document.getElementById('example-list');
+examples.forEach((ex, i) => {
+  const confColor = ex.conf > 0.65 ? 'var(--emerald)' : ex.conf > 0.4 ? 'var(--amber)' : 'var(--rose)';
+  el.innerHTML += `
+    <div class="example-item" onclick="this.querySelector('.example-detail').classList.toggle('open')">
+      <div class="example-header">
+        <div><span class="example-num">#${i+1}</span><span class="example-query">"${ex.q}"</span></div>
+        <span class="example-conf" style="color:${confColor}">${ex.conf.toFixed(2)}</span>
+      </div>
+      <div class="example-detail">
+        <p><strong style="color:var(--emerald)">Clarification:</strong> ${ex.cl ? 'Yes — '+ex.cq : 'No — show results directly'}</p>
+        <p><strong style="color:var(--blue)">Best Pick explanation:</strong> ${ex.explain}</p>
+        <p><strong style="color:var(--violet)">Memory update:</strong> ${ex.mem}</p>
+      </div>
+    </div>`;
+});
+</script>
+</body>
+</html>
