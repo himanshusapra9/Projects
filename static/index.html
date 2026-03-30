@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open Source Intelligence Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+        <span>OSINT Dashboard</span>
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-tab active" data-view="search">Search</button>
+        <button class="nav-tab" data-view="trending">Trending</button>
+        <button class="nav-tab" data-view="analysis">Analysis</button>
+        <button class="nav-tab" data-view="browse">Browse</button>
+      </nav>
+      <div class="topbar-right">
+        <span class="status-indicator" id="statusDot"></span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <!-- ============ SEARCH VIEW ============ -->
+    <section class="view active" id="view-search">
+      <div class="search-hero">
+        <h1>Explore Open Source Data</h1>
+        <p>Search Reddit, Hacker News, Lobsters, and DEV.to in one place</p>
+        <form class="search-form" id="searchForm">
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="searchQuery" placeholder="Search posts, topics, discussions..." autocomplete="off">
+            <button type="submit" class="btn btn-primary">Search</button>
+          </div>
+          <div class="search-filters">
+            <div class="filter-group">
+              <label>Sources</label>
+              <div class="source-checks">
+                <label class="check-label"><input type="checkbox" value="reddit" checked class="source-cb"> Reddit</label>
+                <label class="check-label"><input type="checkbox" value="hackernews" checked class="source-cb"> Hacker News</label>
+                <label class="check-label"><input type="checkbox" value="lobsters" checked class="source-cb"> Lobsters</label>
+                <label class="check-label"><input type="checkbox" value="devto" checked class="source-cb"> DEV.to</label>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label>Subreddit</label>
+              <input type="text" id="searchSubreddit" placeholder="all" value="all">
+            </div>
+            <div class="filter-group">
+              <label>Sort</label>
+              <select id="searchSort">
+                <option value="relevance">Relevance</option>
+                <option value="hot">Hot</option>
+                <option value="top">Top</option>
+                <option value="new">New</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Time Preset</label>
+              <select id="searchTime">
+                <option value="day">Today</option>
+                <option value="week" selected>This Week</option>
+                <option value="month">This Month</option>
+                <option value="year">This Year</option>
+                <option value="all">All Time</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+            <div class="filter-group custom-date-group" id="customDateGroup" style="display:none">
+              <label>From</label>
+              <input type="date" id="searchDateFrom">
+            </div>
+            <div class="filter-group custom-date-group" id="customDateGroup2" style="display:none">
+              <label>To</label>
+              <input type="date" id="searchDateTo">
+            </div>
+            <div class="filter-group">
+              <label>Min Score</label>
+              <input type="number" id="searchMinScore" value="0" min="0">
+            </div>
+            <div class="filter-group">
+              <label>Sentiment</label>
+              <select id="searchSentiment">
+                <option value="any">Any</option>
+                <option value="positive">Positive</option>
+                <option value="neutral">Neutral</option>
+                <option value="negative">Negative</option>
+              </select>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="results-header" id="searchResultsHeader" style="display:none">
+        <div class="results-meta">
+          <span id="searchResultCount"></span>
+          <span id="searchResultQuery"></span>
+        </div>
+        <div class="view-toggle">
+          <button class="view-btn active" data-layout="grid" title="Grid view">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          </button>
+          <button class="view-btn" data-layout="list" title="List view">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="posts-grid" id="searchResults"></div>
+      <div class="load-more-wrap" id="searchLoadMore" style="display:none">
+        <button class="btn btn-outline" id="searchLoadMoreBtn">Load More</button>
+      </div>
+    </section>
+
+    <!-- ============ TRENDING VIEW ============ -->
+    <section class="view" id="view-trending">
+      <div class="section-header">
+        <h2>Trending Now</h2>
+        <p>Top posts across Reddit, Hacker News, Lobsters &amp; DEV.to</p>
+        <div class="trending-controls">
+          <div class="trending-subs-input">
+            <label>Subreddits:</label>
+            <input type="text" id="trendingSubs" value="technology,programming,python,worldnews,science">
+          </div>
+          <div class="trending-sources">
+            <label class="check-label"><input type="checkbox" id="trendHN" checked> Hacker News</label>
+            <label class="check-label"><input type="checkbox" id="trendLobsters" checked> Lobsters</label>
+            <label class="check-label"><input type="checkbox" id="trendDevto" checked> DEV.to</label>
+          </div>
+          <button class="btn btn-primary btn-sm" id="trendingRefresh">Refresh</button>
+        </div>
+      </div>
+      <div class="stats-bar" id="trendingStats"></div>
+      <div class="posts-grid" id="trendingResults"></div>
+    </section>
+
+    <!-- ============ ANALYSIS VIEW ============ -->
+    <section class="view" id="view-analysis">
+      <div class="section-header">
+        <h2>Data Analysis</h2>
+        <p>Deep insights: cohort analysis, user behavior, engagement metrics, and keyword trends</p>
+        <form class="analysis-form" id="analysisForm">
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" id="analysisQuery" placeholder="Topic to analyze (e.g. 'artificial intelligence')" autocomplete="off">
+            <button type="submit" class="btn btn-primary">Analyze</button>
+          </div>
+          <div class="search-filters">
+            <div class="filter-group">
+              <label>Sources</label>
+              <div class="source-checks">
+                <label class="check-label"><input type="checkbox" value="reddit" checked class="analysis-source-cb"> Reddit</label>
+                <label class="check-label"><input type="checkbox" value="hackernews" checked class="analysis-source-cb"> Hacker News</label>
+                <label class="check-label"><input type="checkbox" value="lobsters" checked class="analysis-source-cb"> Lobsters</label>
+                <label class="check-label"><input type="checkbox" value="devto" checked class="analysis-source-cb"> DEV.to</label>
+              </div>
+            </div>
+            <div class="filter-group">
+              <label>From</label>
+              <input type="date" id="analysisDateFrom">
+            </div>
+            <div class="filter-group">
+              <label>To</label>
+              <input type="date" id="analysisDateTo">
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div id="analysisResults" class="analysis-dashboard"></div>
+    </section>
+
+    <!-- ============ BROWSE VIEW ============ -->
+    <section class="view" id="view-browse">
+      <div class="section-header">
+        <h2>Browse Subreddit</h2>
+        <p>Dive into any subreddit and analyze its content</p>
+        <form class="browse-form" id="browseForm">
+          <div class="search-input-wrap">
+            <span class="browse-prefix">r/</span>
+            <input type="text" id="browseSubreddit" placeholder="technology" value="technology">
+            <select id="browseSort">
+              <option value="hot">Hot</option>
+              <option value="new">New</option>
+              <option value="top">Top</option>
+              <option value="rising">Rising</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Go</button>
+          </div>
+        </form>
+      </div>
+      <div class="posts-grid" id="browseResults"></div>
+      <div class="load-more-wrap" id="browseLoadMore" style="display:none">
+        <button class="btn btn-outline" id="browseLoadMoreBtn">Load More</button>
+      </div>
+    </section>
+
+    <!-- POST DETAIL MODAL -->
+    <div class="modal-overlay" id="postModal">
+      <div class="modal">
+        <button class="modal-close" id="modalClose">&times;</button>
+        <div class="modal-body" id="modalBody"></div>
+      </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+    </div>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>
