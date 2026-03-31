@@ -12,6 +12,7 @@ export type AlternativeProduct = {
   returnRisk: "low" | "moderate" | "elevated";
   whyChip: string;
   imageColor?: string;
+  imageUrl?: string;
 };
 
 const riskStyles: Record<
@@ -74,16 +75,20 @@ export function AlternativesList({
               className="block w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             >
               <div
-                className="relative aspect-[4/3] bg-gradient-to-br from-slate-100 to-slate-200"
+                className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200"
                 style={
-                  p.imageColor
+                  !p.imageUrl && p.imageColor
                     ? { background: `linear-gradient(135deg, ${p.imageColor}, #e2e8f0)` }
                     : undefined
                 }
               >
-                <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-slate-400">
-                  Image
-                </div>
+                {p.imageUrl ? (
+                  <img src={p.imageUrl} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-xs font-medium text-slate-400">
+                    Image
+                  </div>
+                )}
                 <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-2xs font-semibold text-accent shadow-sm ring-1 ring-black/5 backdrop-blur">
                   <Sparkles className="h-3 w-3" aria-hidden />
                   {p.fitLabel}

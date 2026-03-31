@@ -2,733 +2,980 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowLeft,
+  ArrowRight,
   Check,
-  ChevronDown,
-  ChevronLeft,
+  ChevronRight,
+  Download,
+  Heart,
   Loader2,
   MessageSquareQuote,
+  Package,
+  Ruler,
+  ShieldCheck,
+  ShoppingBag,
   Sparkles,
   Star,
   StarHalf,
   ThumbsDown,
   ThumbsUp,
+  Truck,
+  Upload,
   UserCircle2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useMemo, useState } from "react";
-import { CartIntervention } from "@/components/cart/CartIntervention";
-import { AlternativesList } from "@/components/pdp/AlternativesList";
-import { ExplanationPanel } from "@/components/pdp/ExplanationPanel";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { FitConfidenceModule } from "@/components/pdp/FitConfidenceModule";
 import { SizeRecommendation } from "@/components/pdp/SizeRecommendation";
-import { ClarificationFlow } from "@/components/shared/ClarificationFlow";
+import { AlternativesList } from "@/components/pdp/AlternativesList";
+import { ExplanationPanel } from "@/components/pdp/ExplanationPanel";
+import { CartIntervention } from "@/components/cart/CartIntervention";
 import { ConfidenceMeter } from "@/components/shared/ConfidenceMeter";
-import { EvidencePill } from "@/components/shared/EvidencePill";
 import { RiskIndicator } from "@/components/shared/RiskIndicator";
-import { RefinementChips } from "@/components/search/RefinementChips";
+import { EvidencePill } from "@/components/shared/EvidencePill";
 
-const HEIGHTS = [
-  "5'6\"",
-  "5'7\"",
-  "5'8\"",
-  "5'9\"",
-  "5'10\"",
-  "5'11\"",
-  "6'0\"",
-  "6'1\"",
-  "6'2\"",
-];
+/* ─── Types ─── */
+type DummyProduct = {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  price: number;
+  discountPercentage: number;
+  rating: number;
+  stock: number;
+  tags: string[];
+  brand: string;
+  sku: string;
+  weight: number;
+  dimensions: { width: number; height: number; depth: number };
+  warrantyInformation: string;
+  shippingInformation: string;
+  availabilityStatus: string;
+  reviews: { rating: number; comment: string; reviewerName: string; date: string }[];
+  returnPolicy: string;
+  images: string[];
+  thumbnail: string;
+};
 
-const WEIGHTS = [
-  "130–139 lbs",
-  "140–149 lbs",
-  "150–159 lbs",
-  "160–169 lbs",
-  "170–179 lbs",
-  "180–189 lbs",
-  "190–199 lbs",
-  "200–209 lbs",
-  "210–220 lbs",
-];
+type UserProfile = {
+  name: string;
+  gender: "men" | "women" | "neutral";
+  height: string;
+  weight: string;
+  chest: string;
+  shoeSize: string;
+  fitPreference: "slim" | "regular" | "relaxed";
+  skinSensitivity: "none" | "mild" | "sensitive";
+};
 
-const SIZE_OPTIONS_BASE = [
-  { id: "s", label: "S", confidence: 62 },
-  { id: "m", label: "M", confidence: 78 },
-  { id: "l", label: "L", confidence: 71 },
-  { id: "xl", label: "XL", confidence: 54 },
-];
+type FeedbackRecord = { productId: number; helpful: boolean };
 
-const SIZE_OPTIONS_ENRICHED = [
-  { id: "s", label: "S", confidence: 72 },
-  { id: "m", label: "M", confidence: 91 },
-  { id: "l", label: "L", confidence: 84 },
-  { id: "xl", label: "XL", confidence: 63 },
-];
+type View = "onboarding" | "browse" | "pdp";
 
-const EVIDENCE_BLOCKS = [
-  {
-    id: "structured",
-    title: "Garment grading & construction",
-    qualifier: "High confidence",
-    bullets: [
-      "Northline’s M block matches your chest and shoulder span within a half-inch.",
-      "Ribbed hem and cuffs are spec’d for minimal shrink on cold wash—aligned with how you care for knits.",
-    ],
-    kind: "structured" as const,
-  },
-  {
-    id: "reviews",
-    title: "Verified buyer patterns",
-    qualifier: "Strong signal",
-    bullets: [
-      "Recent reviews describe the torso as trim, not tight—consistent with a true-to-size Medium.",
-      "Sleeve length feedback skews neutral; few exchanges cite arm length as the issue.",
-    ],
-    kind: "reviews" as const,
-  },
-  {
-    id: "preferences",
-    title: "Your saved preferences",
-    qualifier: "Personalized",
-    bullets: [
-      "You’ve kept relaxed knits before; this crew sits between slim and easy—your stated sweet spot.",
-      "Between sizes, you favor clean shoulders over extra drape—we weighted shoulder map accordingly.",
-    ],
-    kind: "preferences" as const,
-  },
-  {
-    id: "community",
-    title: "Community corroboration",
-    qualifier: "Cross-checked",
-    bullets: [
-      "r/malefashionadvice threads echo a slightly snug chest in M for athletic builds—already reflected in your pick.",
-      "No recurring theme on itchy fiber or neckline stretch—quality signals look stable.",
-    ],
-    kind: "community" as const,
-  },
-];
+const FASHION_CATEGORIES: Record<string, string[]> = {
+  men: ["mens-shirts", "mens-shoes", "mens-watches", "sunglasses"],
+  women: ["tops", "womens-dresses", "womens-shoes", "womens-bags", "womens-jewellery", "sunglasses"],
+  neutral: ["tops", "mens-shirts", "womens-dresses", "mens-shoes", "womens-shoes", "sunglasses", "beauty", "furniture", "skin-care"],
+};
 
-const ALT_PRODUCTS = [
-  {
-    id: "sunspel",
-    name: "Sunspel Extra Fine Merino Crew · Charcoal",
-    price: "$155",
-    fitLabel: "Similar drape",
-    fitScore: 89,
-    returnRisk: "low" as const,
-    whyChip: "Slightly roomier in the chest vs. this Northline block",
-    imageColor: "#94a3b8",
-  },
-  {
-    id: "theory",
-    name: "Theory Hilles Wool-Cashmere Pullover · Stone",
-    price: "$245",
-    fitLabel: "Elevated handfeel",
-    fitScore: 86,
-    returnRisk: "moderate" as const,
-    whyChip: "Trimmer sleeve—better if you prefer a sharper line",
-    imageColor: "#cbd5e1",
-  },
-  {
-    id: "norse",
-    name: "Norse Projects Sigfred Merino · Navy",
-    price: "$175",
-    fitLabel: "Streetwear ease",
-    fitScore: 83,
-    returnRisk: "low" as const,
-    whyChip: "Boxier shoulder; size down if you want less volume",
-    imageColor: "#64748b",
-  },
-];
+const CATEGORY_LABELS: Record<string, string> = {
+  "mens-shirts": "Shirts",
+  "mens-shoes": "Shoes",
+  "mens-watches": "Watches",
+  tops: "Tops",
+  "womens-dresses": "Dresses",
+  "womens-shoes": "Shoes",
+  "womens-bags": "Bags",
+  "womens-jewellery": "Jewellery",
+  sunglasses: "Sunglasses",
+  beauty: "Beauty",
+  furniture: "Furniture",
+  "skin-care": "Skincare",
+};
 
-const FIT_MODULE_EVIDENCE = [
-  {
-    icon: MessageSquareQuote,
-    text: "Reviews: true to size",
-    detail: "Last 90 days: most verified buyers stayed in their usual knit size.",
-  },
-  {
-    icon: Sparkles,
-    text: "Matches your profile",
-    detail:
-      "Height, weight, and chest land in the brand’s core Medium grading curve.",
-  },
-  {
-    icon: UserCircle2,
-    text: "Similar shoppers",
-    detail: "Profiles like yours kept Medium 78% of the time on merino crews.",
-  },
-];
+function fitScoreForProduct(p: DummyProduct, profile: UserProfile | null): number {
+  if (!profile) return 55;
+  let base = 62;
+  if (profile.chest) base += 12;
+  if (profile.height) base += 5;
+  if (profile.weight) base += 4;
+  if (profile.shoeSize && p.category.includes("shoes")) base += 8;
+  const ratingBoost = Math.max(0, (p.rating - 3) * 5);
+  base += ratingBoost;
+  const reviewPenalty = p.reviews.some((r) => r.comment.toLowerCase().includes("disappoint")) ? -6 : 0;
+  base += reviewPenalty;
+  if (p.stock < 10) base -= 3;
+  return Math.min(96, Math.max(42, base + (p.id % 7)));
+}
 
-const CLARIFICATION_QUESTIONS = [
-  {
-    id: "layer",
-    prompt: "How will you mostly wear this sweater?",
-    options: [
-      { id: "solo", label: "On its own" },
-      { id: "over-tee", label: "Over a tee" },
-      { id: "under-jacket", label: "Under tailoring" },
-    ],
-  },
-  {
-    id: "drape",
-    prompt: "When in doubt, you prefer…",
-    options: [
-      { id: "clean", label: "Cleaner shoulder line" },
-      { id: "ease", label: "A touch more ease" },
-      { id: "balanced", label: "Balanced" },
-    ],
-  },
-];
+function returnRiskForProduct(p: DummyProduct): "low" | "moderate" | "review" {
+  if (p.rating >= 4.2 && p.stock > 20) return "low";
+  if (p.rating >= 3.5) return "moderate";
+  return "review";
+}
 
-const STYLE_CHIPS = [
-  { id: "merino", label: "Merino" },
-  { id: "layering", label: "Layering", ai: true },
-  { id: "cold-wash", label: "Cold wash" },
-  { id: "travel", label: "Travel knit", ai: true },
-];
+/* ─── Onboarding Step ─── */
+function OnboardingView({
+  onComplete,
+}: {
+  onComplete: (profile: UserProfile) => void;
+}) {
+  const [profile, setProfile] = useState<UserProfile>({
+    name: "",
+    gender: "neutral",
+    height: "",
+    weight: "",
+    chest: "",
+    shoeSize: "",
+    fitPreference: "regular",
+    skinSensitivity: "none",
+  });
+  const [importing, setImporting] = useState<string | null>(null);
+  const [imported, setImported] = useState(false);
 
-export default function DemoPage() {
-  const [fitScore, setFitScore] = useState(78);
-  const [sizeConfidence, setSizeConfidence] = useState(78);
-  const [profileEnriched, setProfileEnriched] = useState(false);
+  const set = <K extends keyof UserProfile>(k: K, v: UserProfile[K]) =>
+    setProfile((p) => ({ ...p, [k]: v }));
 
-  const [selectedColor, setSelectedColor] = useState<"navy" | "heather" | "forest">(
-    "navy",
-  );
-  const [selectedSizeId, setSelectedSizeId] = useState("m");
-
-  const [profileOpen, setProfileOpen] = useState(true);
-  const [height, setHeight] = useState("");
-  const [weight, setWeight] = useState("");
-  const [chest, setChest] = useState("");
-  const [preferredFit, setPreferredFit] = useState<"slim" | "regular" | "relaxed">(
-    "regular",
-  );
-
-  const [importMenuOpen, setImportMenuOpen] = useState(false);
-  const [importing, setImporting] = useState(false);
-
-  const [feedback, setFeedback] = useState<null | "up" | "down">(null);
-  const [helpedCount, setHelpedCount] = useState(3);
-
-  const [styleChips, setStyleChips] = useState<string[]>(["merino", "layering"]);
-
-  const sizes = useMemo(
-    () => (profileEnriched ? SIZE_OPTIONS_ENRICHED : SIZE_OPTIONS_BASE),
-    [profileEnriched],
-  );
-
-  const applyEnrichedFit = useCallback(() => {
-    setFitScore(91);
-    setSizeConfidence(91);
-    setProfileEnriched(true);
-  }, []);
-
-  const handleSaveProfile = () => {
-    if (!height || !weight || !chest.trim()) return;
-    applyEnrichedFit();
+  const simulateImport = (store: string) => {
+    setImporting(store);
+    setTimeout(() => {
+      setProfile((p) => ({
+        ...p,
+        height: "5'10\"",
+        weight: "175",
+        chest: "40",
+        shoeSize: "10",
+        fitPreference: "regular",
+      }));
+      setImporting(null);
+      setImported(true);
+    }, 2200);
   };
 
-  const handleImport = () => {
-    setImporting(true);
-    setImportMenuOpen(false);
-    window.setTimeout(() => {
-      setHeight("5'10\"");
-      setWeight("170–179 lbs");
-      setChest("40");
-      setPreferredFit("regular");
-      applyEnrichedFit();
-      setImporting(false);
-    }, 1600);
-  };
-
-  const handleFeedback = (kind: "up" | "down") => {
-    if (feedback !== null) return;
-    setFeedback(kind);
-    setHelpedCount((c) => c + 1);
-  };
-
-  const whyExplanation = profileEnriched
-    ? "Your saved measurements and Northline’s grading put you squarely in Medium. Reviews note a trim—not tight—chest; if you often layer over a tee, Medium still clears comfortably."
-    : "Based on general population signals, Medium is the strongest match. Add quick measurements or import a profile to lift confidence into the low-return band.";
+  const canProceed = profile.name.trim().length > 0;
 
   return (
-    <div className="min-h-screen bg-surface-light text-navy-950">
-      <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 transition hover:text-navy-950"
-          >
-            <ChevronLeft className="h-4 w-4" aria-hidden />
-            Back to shop
+    <div className="min-h-screen bg-surface-light">
+      <nav className="border-b border-slate-200/60 bg-white/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-3xl items-center justify-between px-5 py-3.5">
+          <Link href="/" className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-accent" />
+            <span className="text-sm font-semibold text-navy-950">FitConfidence</span>
           </Link>
-          <span className="hidden text-2xs font-semibold uppercase tracking-[0.2em] text-slate-400 sm:inline">
-            Northline · New arrivals
-          </span>
+          <span className="text-xs font-medium text-slate-400">Live Demo</span>
         </div>
-      </header>
+      </nav>
 
-      <main className="mx-auto max-w-6xl px-5 pb-20 pt-8">
-        <nav
-          className="mb-10 text-sm text-slate-500"
-          aria-label="Breadcrumb"
+      <main className="mx-auto max-w-2xl px-5 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center"
         >
-          <ol className="flex flex-wrap items-center gap-2">
-            <li>
-              <Link href="/" className="transition hover:text-accent">
-                Home
-              </Link>
-            </li>
-            <li aria-hidden className="text-slate-300">
-              /
-            </li>
-            <li>
-              <span className="transition hover:text-accent">Men</span>
-            </li>
-            <li aria-hidden className="text-slate-300">
-              /
-            </li>
-            <li>
-              <span className="transition hover:text-accent">Sweaters</span>
-            </li>
-            <li aria-hidden className="text-slate-300">
-              /
-            </li>
-            <li className="font-medium text-navy-950">Merino Crewneck</li>
-          </ol>
-        </nav>
+          <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-50 ring-1 ring-indigo-100">
+            <UserCircle2 className="h-7 w-7 text-accent" />
+          </div>
+          <h1 className="font-serif text-3xl tracking-tight text-navy-950 sm:text-4xl">
+            Tell us about yourself
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-600">
+            Share a few details so we can analyze fit confidence and return risk
+            on real products. Nothing is stored—this is a live demo.
+          </p>
+        </motion.div>
 
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] lg:gap-16">
-          {/* Product imagery */}
-          <div className="space-y-4">
-            <div className="relative aspect-[3/4] overflow-hidden rounded-sm bg-gradient-to-br from-navy-950 via-slate-800 to-slate-600 shadow-lg ring-1 ring-black/5">
-              <div
-                className="absolute inset-0 opacity-40"
-                style={{
-                  background:
-                    "radial-gradient(ellipse 80% 60% at 30% 20%, rgba(255,255,255,0.12), transparent 50%)",
-                }}
-              />
-              <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-2xs font-semibold uppercase tracking-wide text-emerald-800 shadow-md ring-1 ring-emerald-100">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-                Great fit
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mt-10 space-y-6"
+        >
+          {/* Name + Gender */}
+          <div className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-sm font-semibold text-navy-950">Basics</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-500">Your name</label>
+                <input
+                  type="text"
+                  value={profile.name}
+                  onChange={(e) => set("name", e.target.value)}
+                  placeholder="Alex"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-navy-950 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
               </div>
-              <p className="absolute bottom-6 left-6 max-w-[12rem] font-serif text-lg italic text-white/90">
-                Extra-fine merino · ribbed cuffs
-              </p>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-500">Shopping for</label>
+                <div className="flex gap-2">
+                  {(["men", "women", "neutral"] as const).map((g) => (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => set("gender", g)}
+                      className={`flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium capitalize transition ${
+                        profile.gender === g
+                          ? "border-indigo-300 bg-indigo-50 text-accent"
+                          : "border-slate-200 text-slate-700 hover:border-slate-300"
+                      }`}
+                    >
+                      {g === "neutral" ? "All" : g}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="grid grid-cols-4 gap-3">
-              {[
-                "from-slate-700 to-slate-900",
-                "from-indigo-900 to-slate-800",
-                "from-slate-600 to-zinc-700",
-                "from-slate-800 to-navy-950",
-              ].map((g, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  className={`relative aspect-square overflow-hidden rounded-sm bg-gradient-to-br ring-2 ring-offset-2 transition ${i === 0 ? "ring-navy-950" : "ring-transparent hover:ring-slate-300"}`}
-                  aria-label={`Product view ${i + 1}`}
+          </div>
+
+          {/* Measurements */}
+          <div className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-navy-950">
+                <Ruler className="mr-2 inline h-4 w-4 text-accent" />
+                Measurements
+                <span className="ml-2 text-xs font-normal text-slate-400">(optional — improves accuracy)</span>
+              </h2>
+              {imported && (
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700">
+                  <Check className="h-3.5 w-3.5" /> Imported
+                </span>
+              )}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-500">Height</label>
+                <select
+                  value={profile.height}
+                  onChange={(e) => set("height", e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-navy-950 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 >
-                  <span className={`block h-full w-full bg-gradient-to-br ${g}`} />
+                  <option value="">Select</option>
+                  {["5'4\"","5'5\"","5'6\"","5'7\"","5'8\"","5'9\"","5'10\"","5'11\"","6'0\"","6'1\"","6'2\"","6'3\"","6'4\""].map((h) => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-500">Weight (lbs)</label>
+                <input
+                  type="number"
+                  value={profile.weight}
+                  onChange={(e) => set("weight", e.target.value)}
+                  placeholder="175"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-navy-950 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-500">Chest (in.)</label>
+                <input
+                  type="number"
+                  value={profile.chest}
+                  onChange={(e) => set("chest", e.target.value)}
+                  placeholder="40"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-navy-950 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-slate-500">Shoe size (US)</label>
+                <input
+                  type="text"
+                  value={profile.shoeSize}
+                  onChange={(e) => set("shoeSize", e.target.value)}
+                  placeholder="10"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-navy-950 placeholder:text-slate-400 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <label className="mb-1.5 block text-xs font-medium text-slate-500">Preferred fit</label>
+              <div className="flex gap-2">
+                {(["slim", "regular", "relaxed"] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => set("fitPreference", f)}
+                    className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium capitalize transition ${
+                      profile.fitPreference === f
+                        ? "border-indigo-300 bg-indigo-50 text-accent"
+                        : "border-slate-200 text-slate-700 hover:border-slate-300"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Import from Store */}
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50/50 p-6">
+            <h2 className="mb-1 text-sm font-semibold text-navy-950">
+              <Upload className="mr-2 inline h-4 w-4 text-accent" />
+              Import from your favorite store
+            </h2>
+            <p className="mb-4 text-xs text-slate-500">
+              Auto-fill your measurements from past orders
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { id: "amazon", label: "Amazon", color: "bg-orange-50 border-orange-200 text-orange-900" },
+                { id: "nordstrom", label: "Nordstrom", color: "bg-slate-50 border-slate-300 text-slate-900" },
+                { id: "nike", label: "Nike.com", color: "bg-slate-900 border-slate-800 text-white" },
+                { id: "asos", label: "ASOS", color: "bg-blue-50 border-blue-200 text-blue-900" },
+              ].map((store) => (
+                <button
+                  key={store.id}
+                  type="button"
+                  disabled={importing !== null}
+                  onClick={() => simulateImport(store.id)}
+                  className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition hover:shadow-sm disabled:opacity-50 ${store.color}`}
+                >
+                  {importing === store.id ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  {importing === store.id ? "Importing..." : store.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Product copy & modules */}
-          <div className="space-y-8">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Northline
-              </p>
-              <h1 className="mt-2 font-serif text-3xl font-normal tracking-tight text-navy-950 sm:text-4xl">
-                Merino Wool Crewneck Sweater
-              </h1>
-              <div className="mt-4 flex flex-wrap items-baseline gap-4">
-                <span className="text-2xl font-medium tabular-nums text-navy-950">
-                  $128
-                </span>
-                <span className="text-sm text-slate-500">Tax included where applicable</span>
-              </div>
+          {/* Proceed */}
+          <motion.button
+            type="button"
+            disabled={!canProceed}
+            onClick={() => onComplete(profile)}
+            whileHover={canProceed ? { scale: 1.01 } : {}}
+            whileTap={canProceed ? { scale: 0.98 } : {}}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-4 text-base font-semibold text-white shadow-md shadow-indigo-200/50 transition hover:bg-indigo-500 disabled:opacity-40 disabled:shadow-none"
+          >
+            Browse products with fit analysis
+            <ArrowRight className="h-5 w-5" />
+          </motion.button>
+        </motion.div>
+      </main>
+    </div>
+  );
+}
 
-              <div
-                className="mt-5 flex items-center gap-2"
-                role="img"
-                aria-label="4.6 out of 5 stars from 1247 reviews"
+/* ─── Product Card ─── */
+function ProductCard({
+  product,
+  fitScore,
+  risk,
+  onClick,
+}: {
+  product: DummyProduct;
+  fitScore: number;
+  risk: "low" | "moderate" | "review";
+  onClick: () => void;
+}) {
+  const riskStyles = {
+    low: "bg-emerald-50 text-emerald-800 ring-emerald-100",
+    moderate: "bg-amber-50 text-amber-900 ring-amber-100",
+    review: "bg-rose-50 text-rose-900 ring-rose-100",
+  };
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="group cursor-pointer overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm ring-1 ring-black/[0.03] transition hover:-translate-y-0.5 hover:shadow-md"
+      onClick={onClick}
+    >
+      <div className="relative aspect-square overflow-hidden bg-slate-100">
+        <img
+          src={product.thumbnail}
+          alt={product.title}
+          className="h-full w-full object-cover transition group-hover:scale-105"
+          loading="lazy"
+        />
+        <div className="absolute left-2 top-2 flex flex-col gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-2xs font-semibold text-accent shadow-sm ring-1 ring-black/5 backdrop-blur">
+            <Sparkles className="h-3 w-3" />
+            {fitScore}% fit
+          </span>
+          <span className={`inline-flex rounded-full px-2 py-0.5 text-2xs font-semibold ring-1 ${riskStyles[risk]}`}>
+            {risk === "low" ? "Low risk" : risk === "moderate" ? "Check fit" : "Review carefully"}
+          </span>
+        </div>
+        {product.discountPercentage > 10 && (
+          <span className="absolute right-2 top-2 rounded-full bg-red-500 px-2 py-0.5 text-2xs font-semibold text-white">
+            -{Math.round(product.discountPercentage)}%
+          </span>
+        )}
+      </div>
+      <div className="p-4">
+        <p className="text-2xs font-medium uppercase tracking-wide text-slate-400">
+          {product.brand}
+        </p>
+        <h3 className="mt-1 line-clamp-2 text-sm font-semibold leading-snug text-navy-950 group-hover:text-accent">
+          {product.title}
+        </h3>
+        <div className="mt-2 flex items-center gap-2">
+          <span className="text-sm font-semibold text-navy-950">${product.price.toFixed(2)}</span>
+          {product.discountPercentage > 5 && (
+            <span className="text-xs text-slate-400 line-through">
+              ${(product.price / (1 - product.discountPercentage / 100)).toFixed(2)}
+            </span>
+          )}
+        </div>
+        <div className="mt-2 flex items-center gap-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Star
+              key={i}
+              className={`h-3 w-3 ${i < Math.floor(product.rating) ? "fill-amber-400 text-amber-400" : "text-slate-200"}`}
+            />
+          ))}
+          <span className="ml-1 text-2xs text-slate-500">
+            ({product.reviews.length})
+          </span>
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
+/* ─── Browse View ─── */
+function BrowseView({
+  profile,
+  products,
+  loading,
+  onSelectProduct,
+  onEditProfile,
+}: {
+  profile: UserProfile;
+  products: DummyProduct[];
+  loading: boolean;
+  onSelectProduct: (p: DummyProduct) => void;
+  onEditProfile: () => void;
+}) {
+  const categories = useMemo(() => {
+    const cats = new Set(products.map((p) => p.category));
+    return ["all", ...Array.from(cats)];
+  }, [products]);
+
+  const [activeCategory, setActiveCategory] = useState("all");
+
+  const filtered = activeCategory === "all"
+    ? products
+    : products.filter((p) => p.category === activeCategory);
+
+  return (
+    <div className="min-h-screen bg-surface-light">
+      <nav className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
+          <Link href="/" className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5 text-accent" />
+            <span className="text-sm font-semibold text-navy-950">FitConfidence</span>
+          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onEditProfile}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300"
+            >
+              <UserCircle2 className="h-3.5 w-3.5" />
+              {profile.name}
+            </button>
+            <Link
+              href="/dashboard"
+              className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-300"
+            >
+              Dashboard
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      <header className="border-b border-slate-200/60 bg-gradient-to-b from-indigo-50/40 to-transparent py-8">
+        <div className="mx-auto max-w-6xl px-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+            Live product analysis
+          </p>
+          <h1 className="mt-1 font-serif text-2xl tracking-tight text-navy-950 sm:text-3xl">
+            Browse with fit confidence, {profile.name}
+          </h1>
+          <p className="mt-2 max-w-lg text-sm text-slate-600">
+            Every product below is pulled live from an open API. Fit scores and
+            return-risk are computed using your profile.
+          </p>
+
+          {/* Category tabs */}
+          <div className="mt-6 flex flex-wrap gap-2">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCategory(cat)}
+                className={`rounded-full border px-3.5 py-1.5 text-sm font-medium capitalize transition ${
+                  activeCategory === cat
+                    ? "border-indigo-300 bg-indigo-50 text-accent"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                }`}
               >
-                <div className="flex items-center gap-0.5 text-amber-500" aria-hidden>
-                  {[1, 2, 3, 4].map((s) => (
-                    <Star key={s} className="h-4 w-4 fill-current" strokeWidth={0} />
-                  ))}
-                  <StarHalf className="h-4 w-4 fill-current" strokeWidth={0} />
-                </div>
-                <span className="text-sm font-medium text-navy-950">4.6</span>
-                <span className="text-sm text-slate-500">(1,247 reviews)</span>
-              </div>
+                {cat === "all" ? "All" : CATEGORY_LABELS[cat] ?? cat.replace(/-/g, " ")}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
 
-              <div className="mt-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Color
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {(
-                    [
-                      { id: "navy" as const, label: "Navy" },
-                      { id: "heather" as const, label: "Heather Grey" },
-                      { id: "forest" as const, label: "Forest" },
-                    ] as const
-                  ).map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => setSelectedColor(c.id)}
-                      className={`rounded-full border px-4 py-2 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-                        selectedColor === c.id
-                          ? "border-navy-950 bg-navy-950 text-white"
-                          : "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
-                      }`}
-                    >
-                      {c.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+      <main className="mx-auto max-w-6xl px-5 py-8">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-accent" />
+            <p className="mt-4 text-sm text-slate-500">
+              Fetching live products and computing fit scores...
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {filtered.map((p) => (
+              <ProductCard
+                key={p.id}
+                product={p}
+                fitScore={fitScoreForProduct(p, profile)}
+                risk={returnRiskForProduct(p)}
+                onClick={() => onSelectProduct(p)}
+              />
+            ))}
+          </div>
+        )}
+        {!loading && filtered.length === 0 && (
+          <p className="py-20 text-center text-sm text-slate-500">
+            No products in this category. Try &ldquo;All&rdquo;.
+          </p>
+        )}
+      </main>
+    </div>
+  );
+}
 
-              <div className="mt-6">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Highlights
-                </p>
-                <RefinementChips
-                  chips={STYLE_CHIPS}
-                  activeIds={styleChips}
-                  onToggle={(id) =>
-                    setStyleChips((prev) =>
-                      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-                    )
-                  }
-                />
+/* ─── PDP View ─── */
+function PDPView({
+  product,
+  profile,
+  allProducts,
+  feedback,
+  onBack,
+  onFeedback,
+  onSelectProduct,
+}: {
+  product: DummyProduct;
+  profile: UserProfile;
+  allProducts: DummyProduct[];
+  feedback: FeedbackRecord[];
+  onBack: () => void;
+  onFeedback: (rec: FeedbackRecord) => void;
+  onSelectProduct: (p: DummyProduct) => void;
+}) {
+  const [selectedImg, setSelectedImg] = useState(0);
+  const [addedToCart, setAddedToCart] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<boolean | null>(null);
+  const [showExplanation, setShowExplanation] = useState(false);
+
+  const fitScore = fitScoreForProduct(product, profile);
+  const risk = returnRiskForProduct(product);
+  const helpedCount = feedback.length;
+
+  const sizes = useMemo(() => {
+    if (product.category.includes("shoes")) {
+      return [
+        { id: "8", label: "US 8", confidence: fitScore - 18 },
+        { id: "9", label: "US 9", confidence: fitScore - 5 },
+        { id: "10", label: "US 10", confidence: fitScore + 2 },
+        { id: "11", label: "US 11", confidence: fitScore - 10 },
+      ].map((s) => ({ ...s, confidence: Math.min(98, Math.max(30, s.confidence)) }));
+    }
+    return [
+      { id: "s", label: "S", confidence: Math.min(96, fitScore - 12) },
+      { id: "m", label: "M", confidence: Math.min(98, fitScore + 3) },
+      { id: "l", label: "L", confidence: Math.min(96, fitScore - 3) },
+      { id: "xl", label: "XL", confidence: Math.min(90, fitScore - 20) },
+    ].map((s) => ({ ...s, confidence: Math.max(30, s.confidence) }));
+  }, [fitScore, product.category]);
+
+  const bestSize = sizes.reduce((a, b) => (a.confidence > b.confidence ? a : b));
+
+  const alts = useMemo(() => {
+    return allProducts
+      .filter((p) => p.id !== product.id && p.category === product.category)
+      .slice(0, 3)
+      .map((p) => ({
+        id: String(p.id),
+        name: p.title,
+        price: `$${p.price.toFixed(2)}`,
+        fitLabel: fitScoreForProduct(p, profile) > fitScore ? "Stronger match" : "Similar fit",
+        fitScore: fitScoreForProduct(p, profile),
+        returnRisk: returnRiskForProduct(p) === "review" ? "elevated" as const : returnRiskForProduct(p) as "low" | "moderate",
+        whyChip: p.rating > product.rating ? "Higher rated by buyers" : "Similar style, different cut",
+        imageUrl: p.thumbnail,
+        imageColor: "#c7d2fe",
+      }));
+  }, [allProducts, product, profile, fitScore]);
+
+  const reviewInsights = useMemo(() => {
+    const positive = product.reviews.filter((r) => r.rating >= 4);
+    const negative = product.reviews.filter((r) => r.rating <= 2);
+    return { positive, negative, total: product.reviews.length };
+  }, [product.reviews]);
+
+  const evidenceBlocks = useMemo(() => [
+    {
+      id: "1",
+      title: "Product specifications",
+      qualifier: `${product.brand} · ${product.sku}`,
+      bullets: [
+        `Weight: ${product.weight}oz, Dimensions: ${product.dimensions.width}×${product.dimensions.height}×${product.dimensions.depth}`,
+        `${product.availabilityStatus} · ${product.stock} units in stock`,
+        `Return policy: ${product.returnPolicy}`,
+      ],
+      kind: "structured" as const,
+    },
+    {
+      id: "2",
+      title: `Verified buyer reviews (${reviewInsights.total})`,
+      qualifier: `${reviewInsights.positive.length} positive, ${reviewInsights.negative.length} critical`,
+      bullets: product.reviews.slice(0, 3).map((r) => `"${r.comment}" — ${r.reviewerName} (${r.rating}/5)`),
+      kind: "reviews" as const,
+    },
+    {
+      id: "3",
+      title: "Your profile match",
+      qualifier: "Personalized",
+      bullets: [
+        profile.chest ? `Your chest measurement (${profile.chest}") factored into sizing` : "Add chest measurement for better sizing",
+        `Fit preference: ${profile.fitPreference}`,
+        profile.shoeSize && product.category.includes("shoes") ? `Your shoe size (US ${profile.shoeSize}) aligned to brand chart` : "Profile data used for confidence scoring",
+      ],
+      kind: "preferences" as const,
+    },
+  ], [product, profile, reviewInsights]);
+
+  const giveFeedback = (helpful: boolean) => {
+    setFeedbackGiven(helpful);
+    onFeedback({ productId: product.id, helpful });
+  };
+
+  return (
+    <div className="min-h-screen bg-surface-light">
+      {/* Nav */}
+      <nav className="sticky top-0 z-50 border-b border-slate-200/60 bg-white/80 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-navy-950"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to products
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400">Powered by</span>
+            <ShieldCheck className="h-4 w-4 text-accent" />
+            <span className="text-xs font-semibold text-navy-950">FitConfidence</span>
+          </div>
+        </div>
+      </nav>
+
+      {/* Breadcrumb */}
+      <div className="mx-auto max-w-6xl px-5 py-3">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <button type="button" onClick={onBack} className="hover:text-navy-950">Products</button>
+          <ChevronRight className="h-3 w-3" />
+          <span className="capitalize">{product.category.replace(/-/g, " ")}</span>
+          <ChevronRight className="h-3 w-3" />
+          <span className="font-medium text-navy-950">{product.title}</span>
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-6xl px-5 pb-16">
+        <div className="grid gap-10 lg:grid-cols-[1fr_440px]">
+          {/* Left: Images */}
+          <div>
+            <div className="relative aspect-square overflow-hidden rounded-xl bg-slate-100">
+              <img
+                src={product.images[selectedImg] ?? product.thumbnail}
+                alt={product.title}
+                className="h-full w-full object-cover"
+              />
+              <div className="absolute left-3 top-3 flex flex-col gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-xs font-semibold text-accent shadow-sm ring-1 ring-black/5 backdrop-blur">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {fitScore}% fit match
+                </span>
               </div>
+              <button type="button" className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 shadow-sm ring-1 ring-black/5 backdrop-blur transition hover:bg-white">
+                <Heart className="h-4 w-4 text-slate-600" />
+              </button>
+            </div>
+            <div className="mt-3 flex gap-2 overflow-x-auto">
+              {product.images.map((img, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setSelectedImg(i)}
+                  className={`h-20 w-20 shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                    selectedImg === i ? "border-accent" : "border-transparent hover:border-slate-300"
+                  }`}
+                >
+                  <img src={img} alt={`View ${i + 1}`} className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: Details */}
+          <div className="space-y-6">
+            {/* Title + Price */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{product.brand}</p>
+              <h1 className="mt-1 font-serif text-2xl tracking-tight text-navy-950">{product.title}</h1>
+              <div className="mt-2 flex items-center gap-3">
+                <span className="text-xl font-semibold text-navy-950">${product.price.toFixed(2)}</span>
+                {product.discountPercentage > 5 && (
+                  <span className="text-sm text-slate-400 line-through">
+                    ${(product.price / (1 - product.discountPercentage / 100)).toFixed(2)}
+                  </span>
+                )}
+              </div>
+              <div className="mt-2 flex items-center gap-1.5">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  if (i < Math.floor(product.rating)) return <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />;
+                  if (i === Math.floor(product.rating) && product.rating % 1 >= 0.3) return <StarHalf key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />;
+                  return <Star key={i} className="h-4 w-4 text-slate-200" />;
+                })}
+                <span className="ml-1 text-sm text-slate-500">
+                  {product.rating.toFixed(1)} ({product.reviews.length} reviews)
+                </span>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-slate-600">{product.description}</p>
             </div>
 
+            {/* Fit Confidence */}
             <FitConfidenceModule
-              state="confident"
+              state={fitScore >= 80 ? "confident" : fitScore >= 65 ? "uncertain" : "low-data"}
               score={fitScore}
-              recommendedSize="M"
-              sizeConfidence={sizeConfidence}
-              riskLevel="low"
-              whyExplanation={whyExplanation}
-              evidence={FIT_MODULE_EVIDENCE}
-              onCompareToggle={() => {}}
-            />
-
-            <SizeRecommendation
-              sizes={sizes}
-              selectedId={selectedSizeId}
-              onSelect={setSelectedSizeId}
-              brandTendency="true_to_size"
-              fitNotes={[
-                "Northline merino is spun for a clean shoulder line—expect a tailored crew, not a lounge silhouette.",
-                "Hem hits at high hip on most wearers in M; size up if you prefer a longer drape over denim.",
+              recommendedSize={bestSize.label}
+              sizeConfidence={bestSize.confidence}
+              riskLevel={risk}
+              whyExplanation={`Based on your profile (${profile.fitPreference} fit preference${profile.chest ? `, ${profile.chest}" chest` : ""}) and ${reviewInsights.total} verified reviews. ${reviewInsights.negative.length > 0 ? `${reviewInsights.negative.length} buyer(s) noted concerns.` : "Buyers are largely satisfied."}`}
+              evidence={[
+                { icon: MessageSquareQuote, text: `${reviewInsights.positive.length} positive reviews`, detail: reviewInsights.positive[0]?.comment ?? "Good feedback from buyers" },
+                { icon: Sparkles, text: `${profile.fitPreference} fit preference`, detail: "Your saved preference applied to scoring" },
+                { icon: UserCircle2, text: `Profile: ${profile.name}`, detail: profile.chest ? `${profile.chest}" chest, ${profile.height || "height not set"}` : "Add measurements for better accuracy" },
               ]}
             />
 
-            {/* Your Fit Profile */}
-            <section className="overflow-hidden rounded-lg border border-slate-200/90 bg-white shadow-sm ring-1 ring-black/[0.03]">
-              <button
-                type="button"
-                onClick={() => setProfileOpen((o) => !o)}
-                className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-slate-50/80"
-                aria-expanded={profileOpen}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="font-serif text-lg text-navy-950">Your Fit Profile</span>
-                  {profileEnriched ? (
-                    <ConfidenceMeter
-                      score={fitScore}
-                      size={52}
-                      label="Profile"
-                      aria-label={`Profile fit alignment ${fitScore} percent`}
-                      className="scale-90"
-                    />
-                  ) : null}
-                </div>
-                <motion.span animate={{ rotate: profileOpen ? 180 : 0 }}>
-                  <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden />
-                </motion.span>
-              </button>
-              <AnimatePresence initial={false}>
-                {profileOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="overflow-hidden border-t border-slate-100"
+            {/* Size */}
+            <SizeRecommendation
+              sizes={sizes}
+              selectedId={bestSize.id}
+              brandTendency={product.rating >= 4 ? "true_to_size" : "runs_small"}
+              fitNotes={product.reviews.slice(0, 2).map((r) => `"${r.comment}" — ${r.reviewerName}`)}
+            />
+
+            {/* Feedback */}
+            <div className="rounded-xl border border-slate-200/80 bg-white p-5 shadow-sm">
+              <h3 className="text-sm font-semibold text-navy-950">Was this recommendation helpful?</h3>
+              <p className="mt-1 text-xs text-slate-500">Your feedback trains the model for better results</p>
+              {feedbackGiven === null ? (
+                <div className="mt-3 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => giveFeedback(true)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800 transition hover:bg-emerald-100"
                   >
-                    <div className="space-y-6 p-5 pt-6">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                          Quick measurements
-                        </p>
-                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                          <label className="block text-sm font-medium text-slate-700">
-                            Height
-                            <select
-                              value={height}
-                              onChange={(e) => setHeight(e.target.value)}
-                              className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-950 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-accent/20"
-                            >
-                              <option value="">Select</option>
-                              {HEIGHTS.map((h) => (
-                                <option key={h} value={h}>
-                                  {h}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="block text-sm font-medium text-slate-700">
-                            Weight
-                            <select
-                              value={weight}
-                              onChange={(e) => setWeight(e.target.value)}
-                              className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-950 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-accent/20"
-                            >
-                              <option value="">Select</option>
-                              {WEIGHTS.map((w) => (
-                                <option key={w} value={w}>
-                                  {w}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                          <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
-                            Chest (in.)
-                            <input
-                              type="text"
-                              inputMode="decimal"
-                              placeholder="e.g. 40"
-                              value={chest}
-                              onChange={(e) => setChest(e.target.value)}
-                              className="mt-1.5 w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-950 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-accent/20"
-                            />
-                          </label>
-                        </div>
-                        <fieldset className="mt-4">
-                          <legend className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                            Preferred fit
-                          </legend>
-                          <div className="mt-2 flex flex-wrap gap-3">
-                            {(
-                              [
-                                { id: "slim" as const, label: "Slim" },
-                                { id: "regular" as const, label: "Regular" },
-                                { id: "relaxed" as const, label: "Relaxed" },
-                              ] as const
-                            ).map((f) => (
-                              <label
-                                key={f.id}
-                                className={`inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition ${
-                                  preferredFit === f.id
-                                    ? "border-accent bg-indigo-50 text-accent"
-                                    : "border-slate-200 bg-white text-slate-800 hover:border-slate-300"
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name="pref-fit"
-                                  className="sr-only"
-                                  checked={preferredFit === f.id}
-                                  onChange={() => setPreferredFit(f.id)}
-                                />
-                                {f.label}
-                              </label>
-                            ))}
-                          </div>
-                        </fieldset>
-                      </div>
-
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setImportMenuOpen((v) => !v)}
-                          disabled={importing}
-                          className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-medium text-navy-950 transition hover:bg-slate-100 disabled:opacity-60"
-                        >
-                          {importing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                          ) : null}
-                          Import from store
-                        </button>
-                        <AnimatePresence>
-                          {importMenuOpen && !importing && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -6 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -6 }}
-                              className="absolute left-0 top-full z-20 mt-2 min-w-[220px] rounded-md border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5"
-                              role="menu"
-                            >
-                              {[
-                                "Import from Amazon",
-                                "Import from Nordstrom",
-                                "Import from Nike.com",
-                              ].map((label) => (
-                                <button
-                                  key={label}
-                                  type="button"
-                                  role="menuitem"
-                                  className="block w-full px-4 py-2.5 text-left text-sm text-slate-800 transition hover:bg-slate-50"
-                                  onClick={handleImport}
-                                >
-                                  {label}
-                                </button>
-                              ))}
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-4">
-                        <button
-                          type="button"
-                          onClick={handleSaveProfile}
-                          className="rounded-md bg-navy-950 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-navy-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-                        >
-                          Save profile
-                        </button>
-                        <p className="max-w-sm text-sm leading-relaxed text-slate-500">
-                          Your profile improves recommendations across all products.
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </section>
-
-            {/* Feedback — after fit recommendation */}
-            <section className="rounded-lg border border-slate-200/90 bg-white p-6 shadow-sm ring-1 ring-black/[0.03]">
-              <p className="font-medium text-navy-950">Was this helpful?</p>
-              <p className="mt-1 text-sm text-slate-500">
-                Your feedback trains the model for better recommendations.
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleFeedback("up")}
-                  disabled={feedback !== null}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:border-indigo-200 hover:bg-indigo-50/50 disabled:opacity-50"
+                    <ThumbsUp className="h-4 w-4" /> Yes, helpful
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => giveFeedback(false)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                  >
+                    <ThumbsDown className="h-4 w-4" /> Not quite
+                  </button>
+                </div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800 ring-1 ring-emerald-100"
                 >
-                  <ThumbsUp className="h-4 w-4" aria-hidden />
-                  Yes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleFeedback("down")}
-                  disabled={feedback !== null}
-                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:border-slate-300 disabled:opacity-50"
-                >
-                  <ThumbsDown className="h-4 w-4" aria-hidden />
-                  Not quite
-                </button>
-                <AnimatePresence mode="wait">
-                  {feedback !== null && (
-                    <motion.div
-                      key="thanks"
-                      initial={{ opacity: 0, x: 8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="inline-flex items-center gap-2 text-sm font-medium text-emerald-800"
-                    >
-                      <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 18 }}
-                        className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100"
-                      >
-                        <Check className="h-4 w-4" aria-hidden />
-                      </motion.span>
-                      Thanks! This helps us learn your preferences
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-              <p className="mt-4 text-2xs font-medium uppercase tracking-wide text-slate-400">
-                You&apos;ve helped improve {helpedCount} recommendations
-              </p>
-            </section>
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                className="inline-flex flex-1 items-center justify-center rounded-md bg-navy-950 px-8 py-4 text-base font-semibold tracking-wide text-white shadow-md transition hover:bg-navy-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                Add to bag — $128
-              </button>
-              <RiskIndicator level="low" className="justify-center sm:justify-start" />
+                  <Check className="h-4 w-4" />
+                  Thanks! This helps us learn your preferences.
+                </motion.div>
+              )}
+              {helpedCount > 0 && (
+                <p className="mt-3 text-xs text-slate-500">
+                  You&apos;ve helped improve {helpedCount} recommendation{helpedCount > 1 ? "s" : ""} this session
+                </p>
+              )}
             </div>
 
-            <p className="text-2xs text-slate-400">
-              Complimentary returns within 30 days. Exclusions apply to personalized
-              monograms.
-            </p>
+            {/* Add to Cart */}
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setAddedToCart(true)}
+                disabled={addedToCart}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy-950 py-4 text-base font-semibold text-white shadow-md transition hover:bg-navy-900 disabled:bg-emerald-600"
+              >
+                {addedToCart ? (
+                  <><Check className="h-5 w-5" /> Added to cart</>
+                ) : (
+                  <><ShoppingBag className="h-5 w-5" /> Add to cart — ${product.price.toFixed(2)}</>
+                )}
+              </button>
+              <div className="flex items-center justify-center gap-4 text-xs text-slate-500">
+                <span className="inline-flex items-center gap-1">
+                  <Truck className="h-3.5 w-3.5" /> {product.shippingInformation}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Package className="h-3.5 w-3.5" /> {product.returnPolicy}
+                </span>
+              </div>
+              <RiskIndicator level={risk} className="flex justify-center" />
+            </div>
           </div>
         </div>
 
         {/* Below the fold */}
-        <div className="mt-20 space-y-16 border-t border-slate-200/90 pt-16">
-          <ExplanationPanel blocks={EVIDENCE_BLOCKS} />
+        <div className="mt-12 space-y-10">
+          <ExplanationPanel blocks={evidenceBlocks} />
 
-          <ClarificationFlow
-            questions={CLARIFICATION_QUESTIONS}
-            onComplete={() => {
-              if (!profileEnriched) applyEnrichedFit();
-            }}
-          />
-
-          <AlternativesList products={ALT_PRODUCTS} onSelect={() => {}} />
-
-          <section aria-labelledby="community-heading">
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-              <h2
-                id="community-heading"
-                className="font-serif text-xl font-normal text-navy-950"
-              >
-                Community feedback
-              </h2>
-              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-violet-800 ring-1 ring-violet-100">
-                Sourced from discussion
+          {/* Community Feedback */}
+          <section className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <MessageSquareQuote className="h-4 w-4 text-violet-500" />
+              <h3 className="font-serif text-xl text-navy-950">Community feedback</h3>
+              <span className="rounded-full bg-violet-50 px-2 py-0.5 text-2xs font-semibold text-violet-700 ring-1 ring-violet-100">
+                Secondary signal
               </span>
             </div>
-            <div className="rounded-lg border border-slate-200/90 bg-white p-6 shadow-sm ring-1 ring-black/[0.03]">
-              <div className="flex flex-wrap items-start gap-3">
-                <EvidencePill
-                  icon={MessageSquareQuote}
-                  detail="Paraphrased for clarity; not endorsed by Reddit Inc."
-                >
-                  r/malefashionadvice
-                </EvidencePill>
-              </div>
-              <blockquote className="mt-4 border-l-2 border-indigo-200 pl-4 font-serif text-lg leading-relaxed text-slate-800">
-                &ldquo;Northline merino runs slightly snug in the chest—size up if you&apos;re
-                between sizes.&rdquo;
-              </blockquote>
-              <p className="mt-3 text-sm text-slate-500">
-                Frequently echoed in recent threads on merino layering and office
-                wardrobes. Our Medium recommendation already factors a trim chest block.
+            <div className="space-y-3">
+              {product.reviews.map((r, i) => (
+                <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-3">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <span className="font-medium text-slate-700">{r.reviewerName}</span>
+                    <span>·</span>
+                    <span className="inline-flex items-center gap-0.5">
+                      {r.rating}/5 <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-600">&ldquo;{r.comment}&rdquo;</p>
+                </div>
+              ))}
+              <p className="text-2xs text-slate-400">
+                Community feedback is used as secondary evidence only and does not override structured data.
               </p>
             </div>
           </section>
 
+          {alts.length > 0 && (
+            <AlternativesList
+              products={alts}
+              onSelect={(id) => {
+                const p = allProducts.find((x) => String(x.id) === id);
+                if (p) onSelectProduct(p);
+              }}
+            />
+          )}
+
           <CartIntervention
-            message="One more check before checkout"
-            suggestion="If you plan to wear this over heavier oxford cloth, Large adds sleeve ease without drowning the shoulder—returns for your profile dropped 18% in testing."
+            message={`${profile.name}, based on your profile the ${bestSize.label} is your best match. ${fitScore < 80 ? "Consider the alternatives above if you want a safer pick." : "This looks like a strong fit."}`}
+            suggestion={fitScore >= 80
+              ? `Your fit confidence is ${fitScore}% — you can buy with confidence.`
+              : `Consider trying ${sizes.find((s) => s.id !== bestSize.id && s.confidence > 60)?.label ?? "a different size"} as well.`}
           />
         </div>
       </main>
     </div>
+  );
+}
+
+/* ─── Main Page ─── */
+export default function DemoPage() {
+  const [view, setView] = useState<View>("onboarding");
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [products, setProducts] = useState<DummyProduct[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<DummyProduct | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
+
+  const fetchProducts = useCallback(async (gender: UserProfile["gender"]) => {
+    setLoading(true);
+    try {
+      const cats = FASHION_CATEGORIES[gender] ?? FASHION_CATEGORIES.neutral;
+      const fetches = cats.map((cat) =>
+        fetch(`https://dummyjson.com/products/category/${cat}?limit=8`)
+          .then((r) => r.json())
+          .then((d) => (d.products ?? []) as DummyProduct[])
+          .catch(() => [] as DummyProduct[])
+      );
+      const results = await Promise.all(fetches);
+      setProducts(results.flat());
+    } catch {
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const completeOnboarding = useCallback(
+    (p: UserProfile) => {
+      setProfile(p);
+      setView("browse");
+      void fetchProducts(p.gender);
+    },
+    [fetchProducts],
+  );
+
+  const selectProduct = useCallback((p: DummyProduct) => {
+    setSelectedProduct(p);
+    setView("pdp");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const addFeedback = useCallback((rec: FeedbackRecord) => {
+    setFeedback((prev) => [...prev, rec]);
+  }, []);
+
+  return (
+    <AnimatePresence mode="wait">
+      {view === "onboarding" && (
+        <motion.div key="onboarding" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <OnboardingView onComplete={completeOnboarding} />
+        </motion.div>
+      )}
+      {view === "browse" && profile && (
+        <motion.div key="browse" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <BrowseView
+            profile={profile}
+            products={products}
+            loading={loading}
+            onSelectProduct={selectProduct}
+            onEditProfile={() => setView("onboarding")}
+          />
+        </motion.div>
+      )}
+      {view === "pdp" && profile && selectedProduct && (
+        <motion.div key="pdp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <PDPView
+            product={selectedProduct}
+            profile={profile}
+            allProducts={products}
+            feedback={feedback}
+            onBack={() => setView("browse")}
+            onFeedback={addFeedback}
+            onSelectProduct={selectProduct}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
