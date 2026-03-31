@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shaped Model Explorer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bg: '#0a0e1a',
+            accent1: '#00d4ff',
+            accent2: '#7c3aed',
+            card: '#111827',
+            border: '#1f2937',
+            txt: '#e2e8f0',
+          }
+        }
+      }
+    }
+  </script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-bg min-h-screen">
+  <div id="root"></div>
+  <script>
+    fetch('ShapedModelExplorer.jsx')
+      .then(r => r.text())
+      .then(code => {
+        const transformed = Babel.transform(code + '\nReactDOM.createRoot(document.getElementById("root")).render(React.createElement(ShapedModelExplorer));', { presets: ['react'] }).code;
+        const script = document.createElement('script');
+        script.textContent = transformed;
+        document.body.appendChild(script);
+      })
+      .catch(err => {
+        document.getElementById('root').innerHTML = '<div style="color:#ef4444;padding:2rem;font-family:monospace;">Error loading app: ' + err.message + '</div>';
+      });
+  </script>
+</body>
+</html>
