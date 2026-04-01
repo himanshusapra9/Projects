@@ -5,10 +5,13 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Activity,
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
   FileText,
+  Globe,
+  Layers,
   LayoutDashboard,
   Package,
   Settings,
@@ -23,21 +26,34 @@ import { useAuthStore } from "@/lib/auth";
 
 const navGroups: {
   label: string;
-  items: { href: string; label: string; icon: typeof LayoutDashboard }[];
+  items: {
+    href: string;
+    label: string;
+    icon: typeof LayoutDashboard;
+    badge?: number;
+  }[];
 }[] = [
   {
     label: "Workspace",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/ingest", label: "Ingest", icon: Upload },
       { href: "/products", label: "Products", icon: Package },
+      { href: "/ingest", label: "Ingest", icon: Upload },
+      { href: "/bulk", label: "Bulk Ops", icon: Layers },
+    ],
+  },
+  {
+    label: "Publishing",
+    items: [
       { href: "/review", label: "Review Queue", icon: ClipboardCheck },
+      { href: "/channels", label: "Channels", icon: Globe },
     ],
   },
   {
     label: "Operations",
     items: [
       { href: "/monitoring", label: "Monitoring", icon: Activity },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/audit", label: "Audit Log", icon: FileText },
       { href: "/settings/channels", label: "Settings", icon: Settings },
     ],

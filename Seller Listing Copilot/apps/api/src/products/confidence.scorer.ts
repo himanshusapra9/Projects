@@ -18,6 +18,8 @@ export interface ScoreInput {
   crossSourceAgreement: number;
   schemaCompatibility: number;
   sellerHistoryMatch: number;
+  /** When omitted, a neutral default is used for the signal only (confidence weights unchanged). */
+  evidenceSpecificity?: number;
 }
 
 export interface ScoreResult {
@@ -28,11 +30,13 @@ export interface ScoreResult {
 
 export function computeConfidence(input: ScoreInput): ScoreResult {
   const sourceQuality = SOURCE_QUALITY[input.method];
+  const evidenceSpecificity = input.evidenceSpecificity ?? 0.7;
   const signals: ConfidenceSignals = {
     modelConfidence: input.modelConfidence,
     sourceQuality,
     crossSourceAgreement: input.crossSourceAgreement,
     schemaCompatibility: input.schemaCompatibility,
+    evidenceSpecificity,
     sellerHistoryMatch: input.sellerHistoryMatch,
   };
   const confidence =

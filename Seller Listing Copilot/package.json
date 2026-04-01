@@ -3,7 +3,7 @@
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "predev": "npm run build --workspace=@listingpilot/channel-schemas --workspace=@listingpilot/shared-types",
+    "predev": "npm run build --workspace=@listingpilot/channel-schemas --workspace=@listingpilot/shared-types --workspace=@listingpilot/ml-utils",
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",

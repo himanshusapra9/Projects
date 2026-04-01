@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  AMAZON_BULLET_CHAR_LIMIT,
   AMAZON_BULLET_LIMIT,
   AMAZON_TITLE_LIMIT,
 } from '@listingpilot/channel-schemas';
@@ -16,7 +17,9 @@ export class AmazonGenerator implements ChannelGenerator {
 
   async generate(facts: CanonicalFacts): Promise<GeneratedChannelPackage> {
     const title = this.clip(facts.title ?? 'Untitled', AMAZON_TITLE_LIMIT);
-    const bullets = facts.bullets.slice(0, AMAZON_BULLET_LIMIT).map((b) => this.clip(b, 500));
+    const bullets = facts.bullets
+      .slice(0, AMAZON_BULLET_LIMIT)
+      .map((b) => this.clip(b, AMAZON_BULLET_CHAR_LIMIT));
     return {
       channel: this.channel,
       title,

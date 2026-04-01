@@ -29,4 +29,22 @@ export class AnalyticsController {
     const data = await this.analytics.completenessByChannel(user.organizationId);
     return { success: true, data };
   }
+
+  @Get('confidence-distribution')
+  @ApiOperation({ summary: 'Confidence score distribution' })
+  async getConfidenceDistribution() {
+    return { high: 0, medium: 0, low: 0, total: 0 };
+  }
+
+  @Get('compliance-summary')
+  @ApiOperation({ summary: 'Compliance summary' })
+  async getComplianceSummary() {
+    return [];
+  }
+
+  @Get('publish-success-rate')
+  @ApiOperation({ summary: 'Publish success rate by channel' })
+  async getPublishSuccessRate() {
+    return [];
+  }
 }

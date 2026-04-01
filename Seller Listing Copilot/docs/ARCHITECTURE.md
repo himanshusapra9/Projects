@@ -260,4 +260,27 @@ Delivery: **server-side events** to analytics pipeline (e.g., Segment-compatible
 
 ---
 
+## v2 Architecture Updates
+
+### New Backend Modules
+- **VisionModule** — Image analysis, background removal, per-channel image compliance
+- **ComplianceModule** — Per-channel compliance engine, GTIN validation, Etsy AI disclosure, policy caching
+- **CategoryModule** — Channel-specific category mapping, eBay item specifics
+- **AdaptationModule** — Per-channel listing adaptation (replaces generic generation)
+- **BulkOpsModule** — Bulk publish/relist/delist/category remap with SSE progress
+- **SemanticDedupModule** — Qdrant-based duplicate detection on ingestion
+
+### New Infrastructure
+- **Qdrant** — Vector store for semantic duplicate detection (port 6333)
+- **Worker Process** — Dedicated BullMQ worker decoupled from API (port 4001)
+
+### New Shared Packages
+- **@listingpilot/ml-utils** — Image processing, confidence math, evidence scoring, GTIN validation
+
+### Database Changes
+New models: ImageAsset, CategoryMapping, ComplianceCheck, GtinRecord, ChannelPolicy, BulkOperation, BulkOperationItem.
+Updated models: Attribute (gtinValidated, channelSpecificOverrides), ListingPackage (compliance gate, adaptation notes, search/backend keywords).
+
+---
+
 *Document version: 1.0 — ListingPilot AI architecture.*

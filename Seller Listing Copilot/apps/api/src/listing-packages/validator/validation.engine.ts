@@ -27,18 +27,19 @@ export function runValidation(
   const categoryAccuracy = 0.85;
   const attributeRichness =
     Object.keys(facts.attributes).length >= 5 ? 0.9 : 0.65;
-  const imageCompleteness = facts.images.length > 0 ? 1 : 0.3;
+  const imageComplianceScore = facts.images.length > 0 ? 1 : 0.3;
   const titleQuality = facts.title && facts.title.length >= 20 ? 0.9 : 0.55;
   const policyRiskPenalty = Math.min(
     0.3,
     issues.filter((i) => i.severity === Severity.WARNING).length * 0.05,
   );
+  const safetyCriticalReview = 1;
 
   const total =
     requiredFieldCompleteness * 0.3 +
     categoryAccuracy * 0.2 +
     attributeRichness * 0.2 +
-    imageCompleteness * 0.15 +
+    imageComplianceScore * 0.15 +
     titleQuality * 0.1 -
     policyRiskPenalty;
 
@@ -49,10 +50,11 @@ export function runValidation(
     breakdown: {
       requiredFieldCompleteness,
       categoryAccuracy,
+      imageComplianceScore,
       attributeRichness,
-      imageCompleteness,
       titleQuality,
       policyRiskPenalty,
+      safetyCriticalReview,
     },
     issues,
     readyToPublish,

@@ -104,7 +104,7 @@ describe('runValidation', () => {
     expect(q.readyToPublish).toBe(true);
   });
 
-  it('computes total from requiredFieldCompleteness*0.30 + categoryAccuracy*0.20 + attributeRichness*0.20 + imageCompleteness*0.15 + titleQuality*0.10 - policyRiskPenalty', () => {
+  it('computes total from requiredFieldCompleteness*0.30 + categoryAccuracy*0.20 + attributeRichness*0.20 + imageComplianceScore*0.15 + titleQuality*0.10 - policyRiskPenalty', () => {
     const attrs: Record<string, unknown> = {};
     for (let i = 0; i < 5; i += 1) {
       attrs[`k${i}`] = 'v';
@@ -125,7 +125,7 @@ describe('runValidation', () => {
       b.requiredFieldCompleteness * 0.3 +
       b.categoryAccuracy * 0.2 +
       b.attributeRichness * 0.2 +
-      b.imageCompleteness * 0.15 +
+      b.imageComplianceScore * 0.15 +
       b.titleQuality * 0.1 -
       b.policyRiskPenalty;
     expect(q.total).toBeCloseTo(Math.max(0, Math.min(1, expected)), 10);

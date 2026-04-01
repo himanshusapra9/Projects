@@ -46,10 +46,11 @@ export interface QualityScore {
   breakdown: {
     requiredFieldCompleteness: number;
     categoryAccuracy: number;
+    imageComplianceScore: number;
     attributeRichness: number;
-    imageCompleteness: number;
     titleQuality: number;
     policyRiskPenalty: number;
+    safetyCriticalReview: number;
   };
   issues: ValidationIssue[];
   readyToPublish: boolean;

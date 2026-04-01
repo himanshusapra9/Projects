@@ -2,7 +2,7 @@
 
 dev:
 	docker-compose up -d
-	npm run build --workspace=@listingpilot/channel-schemas --workspace=@listingpilot/shared-types
+	npm run build --workspace=@listingpilot/channel-schemas --workspace=@listingpilot/shared-types --workspace=@listingpilot/ml-utils
 	npm run dev --workspace=apps/api &
 	npm run dev --workspace=apps/web
 

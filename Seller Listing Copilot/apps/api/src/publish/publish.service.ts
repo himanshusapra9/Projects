@@ -3,7 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Channel, MonitorStatus, Prisma, PublishStatus } from '@prisma/client';
+import {
+  Channel,
+  ComplianceGateStatus,
+  MonitorStatus,
+  Prisma,
+  PublishStatus,
+} from '@prisma/client';
 import { PrismaService } from '@/config/database.config';
 import { AuditService } from '@/audit/audit.service';
 import { ListingPackagesService } from '@/listing-packages/listing-packages.service';
@@ -54,7 +60,15 @@ export class PublishService {
     });
     if (!lp) throw new NotFoundException('Listing package not found');
 
+    // Hard compliance gate check — blocks publish if compliance not passed
+    // All connectors check ComplianceGateStatus === PASSED before proceeding
     const dryRun = dto.dryRun === true;
+    if (!dryRun && lp.complianceGate !== ComplianceGateStatus.PASSED) {
+      throw new BadRequestException(
+        'Listing package compliance gate must be PASSED before publishing',
+      );
+    }
+
     if (!dryRun) {
       const blocking = await this.listingPackages.hasBlockingValidations(lp.id);
       if (blocking) {

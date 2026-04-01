@@ -46,7 +46,8 @@
     "uuid": "^10.0.0",
     "xlsx": "^0.18.5",
     "@listingpilot/shared-types": "*",
-    "@listingpilot/channel-schemas": "*"
+    "@listingpilot/channel-schemas": "*",
+    "@listingpilot/ml-utils": "*"
   },
   "prisma": {
     "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts"

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { WALMART_KEY_FEATURE_LIMIT } from '@listingpilot/channel-schemas';
+import { WALMART_BULLET_LIMIT } from '@listingpilot/channel-schemas';
 import { Channel } from '@prisma/client';
 import {
   CanonicalFacts,
@@ -15,7 +15,7 @@ export class WalmartGenerator implements ChannelGenerator {
 
   async generate(facts: CanonicalFacts): Promise<GeneratedChannelPackage> {
     const title = this.clip(facts.title ?? 'Untitled', TITLE_MAX);
-    const bullets = facts.bullets.slice(0, WALMART_KEY_FEATURE_LIMIT);
+    const bullets = facts.bullets.slice(0, WALMART_BULLET_LIMIT);
     return {
       channel: this.channel,
       title,

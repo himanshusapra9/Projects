@@ -1,8 +1,16 @@
 import {
   AccountStatus,
   AssetType,
+  BrandRegistryStatus,
+  BulkOpStatus,
+  BulkOpType,
+  CategoryMappingMethod,
   Channel,
+  ComplianceGateStatus,
+  ComplianceSeverity,
   ExtractionMethod,
+  GtinStatus,
+  GtinType,
   IngestionStatus,
   MonitorStatus,
   PackageStatus,
@@ -502,6 +510,239 @@ async function main(): Promise<void> {
       },
     ],
   });
+
+  // ── v2 Models ──────────────────────────────────────────────────
+
+  const products = [product1, product2, product3, product4, product5];
+  const users = [admin, operator];
+
+  // ImageAssets
+  await prisma.imageAsset.create({
+    data: {
+      organizationId: org.id,
+      productId: products[0].id,
+      storageKey: 'uploads/headphones-front.jpg',
+      processedKey: null,
+      thumbnailKey: 'thumbnails/headphones-front-thumb.jpg',
+      dominantColors: ['#1A1A1A', '#333333', '#CCCCCC'],
+      detectedObjects: [{ label: 'headphones', confidence: 0.95, bbox: [10, 20, 400, 400] }],
+      hasWhiteBackground: false,
+      aspectRatio: 1.0,
+      resolution: '2400x2400',
+      qualityScore: 0.72,
+      complianceFlags: { AMAZON: ['MAIN_IMAGE_BACKGROUND'], EBAY: [], ETSY: [] },
+    },
+  });
+
+  await prisma.imageAsset.create({
+    data: {
+      organizationId: org.id,
+      productId: products[0].id,
+      storageKey: 'uploads/headphones-side.jpg',
+      processedKey: 'processed/headphones-side-clean.jpg',
+      thumbnailKey: 'thumbnails/headphones-side-thumb.jpg',
+      dominantColors: ['#FFFFFF', '#1A1A1A', '#666666'],
+      detectedObjects: [{ label: 'headphones', confidence: 0.92 }],
+      hasWhiteBackground: true,
+      aspectRatio: 1.0,
+      resolution: '2000x2000',
+      qualityScore: 0.91,
+      complianceFlags: { AMAZON: [], EBAY: [], ETSY: [] },
+    },
+  });
+
+  console.log(`  Created ${2} image assets`);
+
+  // CategoryMappings
+  const categoryMappings = await Promise.all([
+    prisma.categoryMapping.create({
+      data: {
+        productId: products[0].id,
+        organizationId: org.id,
+        channel: Channel.AMAZON,
+        channelCategoryId: '172541',
+        channelCategoryPath: 'Electronics > Headphones > Over-Ear',
+        confidenceScore: 0.92,
+        mappingMethod: CategoryMappingMethod.AI_INFERRED,
+        itemSpecifics: { Brand: 'Sony', Type: 'Over-Ear', Connectivity: 'Bluetooth' },
+        requiredAttributes: ['brand', 'model', 'color', 'connectivity'],
+      },
+    }),
+    prisma.categoryMapping.create({
+      data: {
+        productId: products[0].id,
+        organizationId: org.id,
+        channel: Channel.EBAY,
+        channelCategoryId: '112529',
+        channelCategoryPath: 'Consumer Electronics > Portable Audio > Headphones',
+        confidenceScore: 0.88,
+        mappingMethod: CategoryMappingMethod.AI_INFERRED,
+        itemSpecifics: { Brand: 'Sony', Model: 'WH-1000XM5', Type: 'Over-Ear' },
+        requiredAttributes: ['brand', 'model', 'type', 'connectivity', 'color'],
+      },
+    }),
+    prisma.categoryMapping.create({
+      data: {
+        productId: products[1].id,
+        organizationId: org.id,
+        channel: Channel.AMAZON,
+        channelCategoryId: '14308411',
+        channelCategoryPath: 'Sports & Outdoors > Drinkware > Water Bottles',
+        confidenceScore: 0.95,
+        mappingMethod: CategoryMappingMethod.AI_INFERRED,
+        itemSpecifics: {},
+        requiredAttributes: ['brand', 'material', 'capacity'],
+      },
+    }),
+  ]);
+
+  console.log(`  Created ${categoryMappings.length} category mappings`);
+
+  // GtinRecords
+  const gtinRecords = await Promise.all([
+    prisma.gtinRecord.create({
+      data: {
+        productId: products[0].id,
+        organizationId: org.id,
+        gtin: '027242923539',
+        gtinType: GtinType.UPC,
+        verificationStatus: GtinStatus.INVALID,
+        verificationMethod: 'CHECK_DIGIT',
+        brandName: 'Sony',
+        amazonBrandRegistryStatus: BrandRegistryStatus.REGISTERED,
+      },
+    }),
+    prisma.gtinRecord.create({
+      data: {
+        productId: products[1].id,
+        organizationId: org.id,
+        gtin: '850032307055',
+        gtinType: GtinType.UPC,
+        verificationStatus: GtinStatus.OWNER_CONFIRMED,
+        verificationMethod: 'SELLER',
+        brandName: 'HydroFlask',
+        amazonBrandRegistryStatus: BrandRegistryStatus.REGISTERED,
+      },
+    }),
+  ]);
+
+  console.log(`  Created ${gtinRecords.length} GTIN records`);
+
+  // ChannelPolicies (cached snapshots)
+  await Promise.all([
+    prisma.channelPolicy.create({
+      data: {
+        channel: Channel.AMAZON,
+        policyKey: 'image.main.background',
+        policyValue: { required: 'pure_white', rgb: [255, 255, 255], tolerance: 0 },
+        sourceUrl: 'https://sellercentral.amazon.com/help/hub/reference/G1881',
+        fetchedAt: new Date(),
+      },
+    }),
+    prisma.channelPolicy.create({
+      data: {
+        channel: Channel.AMAZON,
+        policyKey: 'title.prohibited_terms',
+        policyValue: { terms: ['best seller', '#1', 'guaranteed', 'free shipping'] },
+        sourceUrl: 'https://sellercentral.amazon.com/help/hub/reference/G200390640',
+        fetchedAt: new Date(),
+      },
+    }),
+    prisma.channelPolicy.create({
+      data: {
+        channel: Channel.ETSY,
+        policyKey: 'ai_disclosure',
+        policyValue: { required: true, field: 'description_suffix' },
+        sourceUrl: 'https://www.etsy.com/legal/policy/artificial-intelligence/1705933392427',
+        fetchedAt: new Date(),
+      },
+    }),
+  ]);
+
+  console.log(`  Created 3 channel policies`);
+
+  // ComplianceChecks for existing listing packages
+  const listingPackages = await prisma.listingPackage.findMany({
+    where: { product: { organizationId: org.id } },
+  });
+
+  if (listingPackages.length > 0) {
+    const complianceChecks = await Promise.all([
+      prisma.complianceCheck.create({
+        data: {
+          listingPackageId: listingPackages[0].id,
+          organizationId: org.id,
+          channel: listingPackages[0].channel,
+          ruleId: 'AMAZON_GTIN_REQUIRED',
+          severity: ComplianceSeverity.BLOCKING,
+          field: 'gtin',
+          violation: 'Valid GTIN required for category Electronics > Headphones',
+          suggestedFix: 'Enter or confirm a valid UPC/EAN for this product',
+          autoFixAvailable: false,
+          externalPolicyUrl: 'https://sellercentral.amazon.com/help/hub/reference/G200317470',
+        },
+      }),
+      prisma.complianceCheck.create({
+        data: {
+          listingPackageId: listingPackages[0].id,
+          organizationId: org.id,
+          channel: listingPackages[0].channel,
+          ruleId: 'AMAZON_MAIN_IMAGE_BACKGROUND',
+          severity: ComplianceSeverity.BLOCKING,
+          field: 'images[0]',
+          violation: 'Main image background #F2F2F2, must be pure white #FFFFFF',
+          suggestedFix: 'Remove background and replace with pure white',
+          autoFixAvailable: true,
+          externalPolicyUrl: 'https://sellercentral.amazon.com/help/hub/reference/G1881',
+        },
+      }),
+    ]);
+
+    console.log(`  Created ${complianceChecks.length} compliance checks`);
+
+    // Update listing packages with v2 fields
+    await prisma.listingPackage.updateMany({
+      where: { id: listingPackages[0]?.id },
+      data: {
+        complianceGate: ComplianceGateStatus.BLOCKED,
+        adaptationNotes: 'Title reordered for keyword density; 2 prohibited terms removed',
+        searchKeywords: ['wireless headphones', 'noise canceling', 'over ear', 'bluetooth'],
+        backendKeywords: ['audio', 'hi-fi', 'active noise cancellation', 'ANC'],
+        etsyTags: [],
+      },
+    });
+  }
+
+  // BulkOperation example
+  const bulkOp = await prisma.bulkOperation.create({
+    data: {
+      organizationId: org.id,
+      createdBy: users[0].id,
+      operationType: BulkOpType.PUBLISH,
+      status: BulkOpStatus.COMPLETED,
+      totalItems: 3,
+      processedItems: 3,
+      failedItems: 0,
+      resultSummary: { successCount: 3, failureCount: 0 },
+      startedAt: new Date(Date.now() - 3600000),
+      completedAt: new Date(),
+    },
+  });
+
+  await Promise.all(
+    products.slice(0, 3).map((p) =>
+      prisma.bulkOperationItem.create({
+        data: {
+          bulkOperationId: bulkOp.id,
+          productId: p.id,
+          channel: Channel.AMAZON,
+          status: BulkOpStatus.COMPLETED,
+        },
+      }),
+    ),
+  );
+
+  console.log(`  Created 1 bulk operation with 3 items`);
 
   console.info('Seed complete:', {
     org: org.slug,

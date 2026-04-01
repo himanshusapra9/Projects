@@ -15,6 +15,10 @@ export interface CanonicalProduct {
   completeness: number;
   attributes: ProductAttribute[];
   variants: ProductVariant[];
+  gtinRecord?: import('./gtin.types').GtinRecordData;
+  categoryMappings: import('./category.types').CategoryMappingData[];
+  images: import('./image.types').ImageAssetData[];
+  channelSpecificOverrides: Record<string, Record<string, string>>;
 }
 
 export interface ProductAttribute {

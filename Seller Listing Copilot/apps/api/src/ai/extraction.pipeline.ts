@@ -25,6 +25,8 @@ export interface PipelineInput {
 
 @Injectable()
 export class ExtractionPipeline {
+  private readonly SYSTEM_GUARDRAILS = `Never generate weight, dimensions, voltage, wattage, material composition percentage, country of origin, certifications (CE, FCC, UL, Prop65), or compatibility claims unless they appear verbatim or are mathematically derivable from the provided source evidence. For any claim that could affect buyer safety or regulatory compliance, confidence must be SELLER_CONFIRMED or API_LOOKUP.`;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -171,7 +173,7 @@ export class ExtractionPipeline {
       });
       const json = await this.claude.completeJson({
         organizationId: input.organizationId,
-        system: EXTRACT_ATTRIBUTES_SYSTEM,
+        system: `${EXTRACT_ATTRIBUTES_SYSTEM}\n\n${this.SYSTEM_GUARDRAILS}`,
         user,
       });
       out.push({ kind: 'llm', text: JSON.stringify(json) });

@@ -1,73 +1,114 @@
-/** Walmart Marketplace listing title limit (SKU / product name field). */
+import { ChannelManifest, ComplianceRule, ImageRules } from './types';
+
 export const WALMART_TITLE_LIMIT = 200;
+export const WALMART_BULLET_LIMIT = 10;
+export const WALMART_DESCRIPTION_LIMIT = 4000;
+export const WALMART_CONTENT_SCORE_TARGET = 90;
 
-export const WALMART_SHORT_DESCRIPTION_LIMIT = 1000;
-export const WALMART_LONG_DESCRIPTION_LIMIT = 4000;
-export const WALMART_KEY_FEATURE_LIMIT = 10;
-export const WALMART_KEY_FEATURE_CHAR_LIMIT = 250;
-export const WALMART_MIN_IMAGES = 1;
-export const WALMART_MAX_IMAGES = 24;
+export const WALMART_MAIN_IMAGE_RULES: ImageRules = {
+  background: 'pure_white',
+  minResolution: 1000,
+};
 
-export const WALMART_BULLET_LIMITS = {
-  min: 0,
-  max: WALMART_KEY_FEATURE_LIMIT,
-  maxCharsPerBullet: WALMART_KEY_FEATURE_CHAR_LIMIT,
-} as const;
-
-export const WALMART_IMAGE_LIMITS = {
-  min: WALMART_MIN_IMAGES,
-  max: WALMART_MAX_IMAGES,
-} as const;
-
-export const WALMART_REQUIRED_FIELDS = [
-  'product_name',
-  'brand',
-  'main_image_url',
-  'shelf_description',
-  'long_description',
-  'condition',
-  'price',
-  'currency',
-  'product_id',
-  'product_id_type',
-  'shipping_weight',
-  'fulfillment_type',
+export const WALMART_REQUIRED_ATTRIBUTES = [
+  'brand', 'manufacturer', 'model', 'color', 'size', 'material',
 ] as const;
 
-export const WALMART_PROHIBITED_TERMS = [
-  'best seller',
-  '#1',
-  'top rated',
-  'free shipping',
-  'guaranteed lowest',
-  'limited time offer',
-  'click here',
-  'buy now only',
-  'wholesale',
-  'dropship',
-] as const;
+export const WALMART_COMPLIANCE_RULES: ComplianceRule[] = [
+  {
+    ruleId: 'WALMART_GTIN_REQUIRED',
+    severity: 'BLOCKING',
+    description: 'Valid GTIN is required for all Walmart listings',
+    field: 'gtin',
+    policyUrl: 'https://sellerhelp.walmart.com/s/guide?article=000006028',
+    autoFixAvailable: false,
+  },
+  {
+    ruleId: 'WALMART_SUPPLIER_ID_REQUIRED',
+    severity: 'BLOCKING',
+    description: 'Supplier ID is required',
+    field: 'supplierId',
+    autoFixAvailable: false,
+  },
+  {
+    ruleId: 'WALMART_CONTENT_SCORE',
+    severity: 'WARNING',
+    description: 'Content score should be at least 90 for optimal listing quality',
+    field: '_contentScore',
+    autoFixAvailable: false,
+  },
+  {
+    ruleId: 'WALMART_TITLE_LIMIT',
+    severity: 'BLOCKING',
+    description: 'Title must not exceed 200 characters',
+    field: 'title',
+    autoFixAvailable: true,
+  },
+  {
+    ruleId: 'WALMART_IMAGE_BACKGROUND',
+    severity: 'BLOCKING',
+    description: 'Main image must have pure white background',
+    field: 'images[0]',
+    autoFixAvailable: true,
+  },
+  {
+    ruleId: 'WALMART_IMAGE_RESOLUTION',
+    severity: 'BLOCKING',
+    description: 'Main image must be at least 1000px on shortest side',
+    field: 'images[0]',
+    autoFixAvailable: false,
+  },
+  {
+    ruleId: 'WALMART_REQUIRED_ATTRIBUTES',
+    severity: 'ERROR',
+    description: 'Brand, manufacturer, model, color, size, and material are required',
+    field: 'attributes',
+    autoFixAvailable: false,
+  },
+  {
+    ruleId: 'WALMART_BULLET_COUNT',
+    severity: 'WARNING',
+    description: 'At least 3 bullet points recommended for content score',
+    field: 'bullets',
+    autoFixAvailable: false,
+  },
+  {
+    ruleId: 'WALMART_DESCRIPTION_LENGTH',
+    severity: 'WARNING',
+    description: 'Description should be at least 150 words for optimal content score',
+    field: 'description',
+    autoFixAvailable: false,
+  },
+];
 
-export type WalmartCondition = 'New' | 'Pre-Owned: Like New' | 'Pre-Owned: Good' | 'Pre-Owned: Fair';
-
-export type WalmartProductIdType = 'GTIN' | 'UPC' | 'EAN' | 'ISBN';
-
-export type WalmartFulfillmentType = 'WFS' | 'SELLER_FULFILLED';
+export const WALMART_MANIFEST: ChannelManifest = {
+  channel: 'WALMART',
+  titleLimit: WALMART_TITLE_LIMIT,
+  descriptionLimit: WALMART_DESCRIPTION_LIMIT,
+  mainImageRules: WALMART_MAIN_IMAGE_RULES,
+  gtinRequired: true,
+  requiredFields: ['title', 'brand', 'gtin', 'supplierId', 'price', 'main_image'],
+  prohibitedTerms: [],
+  complianceRules: WALMART_COMPLIANCE_RULES,
+};
 
 export interface WalmartListingSchema {
-  product_name: string;
+  title: string;
   brand: string;
-  main_image_url: string;
-  additional_image_urls: string[];
-  shelf_description: string;
-  long_description: string;
-  key_features: string[];
-  condition: WalmartCondition;
-  price: string;
+  manufacturer: string;
+  model: string;
+  shortDescription: string;
+  mainDescription: string;
+  bulletPoints: string[];
+  mainImage: string;
+  additionalImages: string[];
+  gtin: string;
+  supplierId: string;
+  price: number;
   currency: string;
-  product_id: string;
-  product_id_type: WalmartProductIdType;
-  shipping_weight: { value: number; unit: 'LB' | 'OZ' | 'KG' | 'G' };
-  fulfillment_type: WalmartFulfillmentType;
-  category_id: string;
+  condition: 'New' | 'Refurbished' | 'Used';
   attributes: Record<string, string>;
+  shippingWeight: number;
+  weightUnit: 'LB' | 'KG';
+  fulfillmentType: 'SELLER' | 'WFS';
 }

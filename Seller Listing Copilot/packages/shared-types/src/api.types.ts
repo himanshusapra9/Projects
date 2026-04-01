@@ -42,3 +42,34 @@ export interface ReviewQueueItem {
   conflicted: boolean;
   evidenceCount: number;
 }
+
+export interface ConfidenceDistribution {
+  high: number;
+  medium: number;
+  low: number;
+  total: number;
+}
+
+export interface ComplianceSummary {
+  channel: string;
+  passRate: number;
+  blockingCount: number;
+  warningCount: number;
+  topViolations: Array<{ ruleId: string; count: number }>;
+}
+
+export interface PublishSuccessRate {
+  channel: string;
+  period: string;
+  successCount: number;
+  failureCount: number;
+  rate: number;
+}
+
+export interface ChannelHealthScore {
+  channel: string;
+  score: number;
+  activeListings: number;
+  suppressedListings: number;
+  trend: 'up' | 'down' | 'stable';
+}
