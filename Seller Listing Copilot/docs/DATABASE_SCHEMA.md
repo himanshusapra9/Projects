@@ -1,6 +1,8 @@
 # ListingPilot AI — Database Schema
 
-**DBMS:** PostgreSQL 15+  
+> **Note:** This document describes the **target / aspirational** database design. The **current implementation** uses Prisma ORM with the schema defined in `apps/api/prisma/schema.prisma`. Some entities below (e.g. `organization_users`, `taxonomy_nodes`, `predictions`, `workflows`) are planned for future phases and do not yet exist in the Prisma schema. Refer to the Prisma schema as the authoritative source for the running application.
+
+**DBMS:** PostgreSQL 16+  
 **Conventions:** `snake_case`; timestamps in UTC (`timestamptz`); UUID primary keys (`uuid`); soft delete via `deleted_at` where noted.
 
 ---

@@ -63,24 +63,16 @@ services:
 
   api:
     build:
-      context: ./apps/api
-    env_file: .env.local
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: .env
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     ports:
-      - "3001:3001"
-
-  worker:
-    build:
-      context: ./apps/api
-    command: ["node", "dist/worker.js"]
-    env_file: .env.local
-    depends_on:
-      - postgres
-      - redis
+      - "4000:4000"
 
 volumes:
   pgdata:
@@ -89,11 +81,11 @@ volumes:
 
 ### Local workflow
 
-1. Copy `.env.example` → `.env.local` and fill values (see below).  
-2. `docker compose up -d postgres redis minio`  
-3. Run migrations against local Postgres.  
-4. Start API and worker (`pnpm dev` or Docker).  
-5. Start Next.js dev server for frontend (`pnpm dev` in `apps/web`).
+1. Copy `.env.example` → `.env` and fill values (see below). Also copy to `apps/api/.env`.  
+2. `docker compose up -d` (starts PostgreSQL, Redis, MinIO, MailHog).  
+3. `npm install` at the repo root.  
+4. `make db` to run Prisma migrations and generate the client.  
+5. `make dev` to start API + web dev servers (or `npm run dev` at root).
 
 ---
 
@@ -104,30 +96,35 @@ volumes:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `NODE_ENV` | Yes | `development` \| `production` |
-| `PORT` | No | API listen port (default `3001`) |
+| `PORT` | No | API listen port (default `4000`) |
 | `DATABASE_URL` | Yes | `postgresql://user:pass@host:5432/db?sslmode=require` |
-| `REDIS_URL` | Yes | `redis://:pass@host:6379/0` |
+| `REDIS_HOST` | No | Redis hostname (default `127.0.0.1`) |
+| `REDIS_PORT` | No | Redis port (default `6379`) |
+| `REDIS_PASSWORD` | No | Redis password (empty for local) |
+| `REDIS_TLS` | No | `true` for TLS connections |
+| `BULL_PREFIX` | No | BullMQ key prefix (default `listingpilot`) |
 | `JWT_ACCESS_SECRET` | Yes | Strong secret for signing access tokens |
 | `JWT_REFRESH_SECRET` | Yes | Strong secret for refresh tokens |
-| `JWT_ACCESS_TTL` | No | e.g. `15m` |
-| `JWT_REFRESH_TTL` | No | e.g. `30d` |
+| `JWT_ACCESS_EXPIRES_SEC` | No | Access token TTL in seconds (default `900`) |
+| `JWT_REFRESH_EXPIRES_SEC` | No | Refresh token TTL in seconds (default `604800`) |
 | `S3_ENDPOINT` | No | For MinIO: `http://localhost:9000` |
-| `S3_REGION` | Yes | e.g. `us-east-1` |
-| `S3_BUCKET` | Yes | Asset bucket name |
-| `S3_ACCESS_KEY` | Yes | |
-| `S3_SECRET_KEY` | Yes | |
+| `S3_REGION` | No | e.g. `us-east-1` (default `us-east-1`) |
+| `S3_BUCKET` | No | Asset bucket name (default `listingpilot-local`) |
+| `S3_ACCESS_KEY_ID` | Yes | S3/MinIO access key |
+| `S3_SECRET_ACCESS_KEY` | Yes | S3/MinIO secret key |
 | `S3_FORCE_PATH_STYLE` | No | `true` for MinIO |
-| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | Yes* | *At least one LLM provider |
-| `CORS_ORIGIN` | Yes | Frontend origin(s), comma-separated |
-| `SENTRY_DSN` | No | Error tracking |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | No | OpenTelemetry |
+| `S3_PUBLIC_BASE_URL` | No | Public URL prefix for assets |
+| `ANTHROPIC_API_KEY` | Yes | Anthropic Claude API key |
+| `ANTHROPIC_MODEL` | No | Model name (default `claude-sonnet-4-20250514`) |
+| `ANTHROPIC_MAX_RETRIES` | No | Max retries (default `3`) |
+| `ANTHROPIC_MAX_TOKENS` | No | Max tokens (default `4096`) |
+| `CORS_ORIGIN` | No | Frontend origin(s), comma-separated (default: allow all) |
 
 ### Frontend (`apps/web`)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NEXT_PUBLIC_API_URL` | Yes | Public API base URL |
-| `NEXT_PUBLIC_APP_URL` | Yes | Canonical app URL (OAuth redirects) |
+| `NEXT_PUBLIC_API_URL` | No | Public API base URL (default `http://localhost:4000/api/v1`) |
 
 **Never** prefix server-only secrets with `NEXT_PUBLIC_`.
 
@@ -217,7 +214,7 @@ Lint & typecheck → Unit tests → Build → Integration tests (optional) → S
 
 | Job | Steps |
 |-----|--------|
-| `ci` | `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm test`, `pnpm build` |
+| `ci` | `npm ci`, `npm run lint`, `npm run test`, `npm run build` |
 | `docker` | Build and push `api` and `worker` images to ECR/Artifact Registry with tag `git sha` |
 | `migrate-staging` | Run migration container against staging DB |
 | `deploy-staging` | Update ECS service / Cloud Run revision |
