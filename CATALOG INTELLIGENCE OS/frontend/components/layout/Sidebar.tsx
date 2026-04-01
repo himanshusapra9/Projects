@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  PlusCircle,
   ClipboardCheck,
   Package,
   Network,
@@ -16,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/ingest", label: "Add Products", icon: PlusCircle },
   { href: "/review", label: "Review Queue", icon: ClipboardCheck },
   { href: "/products", label: "Products", icon: Package },
   { href: "/taxonomy", label: "Taxonomy", icon: Network },

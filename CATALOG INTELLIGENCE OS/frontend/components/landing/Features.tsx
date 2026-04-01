@@ -66,7 +66,10 @@ export default function Features() {
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
+          <p className="text-sm font-semibold uppercase tracking-widest text-brand-600">
+            Platform capabilities
+          </p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
             Everything Your Catalog Needs to{" "}
             <span className="text-brand-600">Perform</span>
           </h2>

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ArrowRight,
   CheckCircle2,
@@ -43,23 +45,24 @@ export default function Hero() {
             </h1>
 
             <p className="mt-6 max-w-xl text-lg text-white/70 sm:text-xl">
-              CIOS enriches, classifies, and scores every SKU with evidence-first
-              AI—so search converts, channels stay accurate, and teams ship
-              catalog updates in days, not quarters.
+              30–60% of your products have wrong or missing attributes. That means
+              zero-result searches, failed channel feeds, and shoppers who leave.
+              CIOS classifies every SKU, extracts every attribute, flags every
+              conflict, and tells you exactly why—with evidence.
             </p>
 
             <div className="mt-10 flex flex-col gap-4 sm:flex-row sm:items-center">
               <a
-                href="#pricing"
+                href="/ingest"
                 className="inline-flex items-center justify-center rounded-xl bg-brand-600 px-8 py-3.5 text-base font-semibold text-white shadow-lg shadow-brand-600/30 transition hover:bg-brand-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-400"
               >
-                Start Free Pilot
+                Try It Free — No API Key Needed
               </a>
               <a
                 href="#how-it-works"
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-8 py-3.5 text-base font-semibold text-white backdrop-blur-sm transition hover:border-white/25 hover:bg-white/10"
               >
-                See It In Action
+                How It Works
                 <ArrowRight className="h-4 w-4" aria-hidden />
               </a>
             </div>

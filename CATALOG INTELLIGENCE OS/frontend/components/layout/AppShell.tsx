@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import TopNav from "@/components/layout/TopNav";
+import DemoBanner from "@/components/shared/DemoBanner";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -12,6 +13,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex min-h-screen flex-1 flex-col lg:pl-0">
         <TopNav onMenuClick={() => setSidebarOpen(true)} />
+        <DemoBanner />
         <main className="flex-1 p-4 lg:p-6">{children}</main>
       </div>
     </div>

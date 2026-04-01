@@ -8,14 +8,10 @@ import CategoryHealthTable from "@/components/dashboard/CategoryHealthTable";
 import ActivityFeed from "@/components/dashboard/ActivityFeed";
 import AlertsPanel from "@/components/dashboard/AlertsPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
 
 export default function DashboardPage() {
   const health = useCatalogHealth();
   const queue = useReviewQueueStats();
-
-  const loading = health.isLoading || queue.isLoading;
-  const err = health.isError || queue.isError;
 
   const h = health.data;
   const q = queue.data;
@@ -46,22 +42,6 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
         <p className="mt-1 text-sm text-slate-500">Catalog health, review pressure, and quality distribution at a glance.</p>
       </div>
-
-      {loading && (
-        <div className="flex items-center gap-2 text-slate-500">
-          <Loader2 className="h-5 w-5 animate-spin" />
-          Loading analytics…
-        </div>
-      )}
-
-      {err && !loading && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardHeader>
-            <CardTitle className="text-base">Could not load live analytics</CardTitle>
-            <CardDescription>Start the API or configure NEXT_PUBLIC_API_URL. Showing empty charts until data is available.</CardDescription>
-          </CardHeader>
-        </Card>
-      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">

@@ -1,11 +1,14 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { SAMPLE_REVIEW_TASKS } from "@/lib/sampleData";
 
 export function useReviewTasks(params?: Record<string, string>) {
   return useQuery({
     queryKey: ["reviewTasks", params],
     queryFn: () => api.review.list(params),
+    retry: 1,
+    placeholderData: { tasks: SAMPLE_REVIEW_TASKS, total: SAMPLE_REVIEW_TASKS.length, page: 1, per_page: 20, has_next: false },
   });
 }
 

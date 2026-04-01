@@ -7,6 +7,7 @@ const problems = [
     title: "Search misses revenue",
     description:
       "Incomplete or wrong attributes mean shoppers never see the right products in site search and filters.",
+    consequence: "→ Zero-result searches, abandoned filter pages, lost ad spend",
     accent: "from-red-500/20 to-orange-500/10",
     statColor: "text-red-400",
   },
@@ -16,6 +17,7 @@ const problems = [
     title: "Misclassification drag",
     description:
       "Taxonomy drift and inconsistent categories break merchandising rules and channel syndication.",
+    consequence: "→ Products in wrong categories break navigation, feeds, and ad targeting",
     accent: "from-orange-500/20 to-amber-500/10",
     statColor: "text-orange-400",
   },
@@ -25,6 +27,7 @@ const problems = [
     title: "Duplicate & split SKUs",
     description:
       "Same product listed multiple ways fragments inventory signals and confuses personalization.",
+    consequence: "→ Split inventory analytics, duplicate PDPs, confused shoppers",
     accent: "from-amber-500/20 to-yellow-500/10",
     statColor: "text-amber-400",
   },
@@ -34,6 +37,7 @@ const problems = [
     title: "Painful onboarding",
     description:
       "Manual cleanup and spreadsheet gymnastics delay launches while competitors ship faster.",
+    consequence: "→ 4-week delay before a single new SKU earns revenue",
     accent: "from-rose-500/20 to-red-500/10",
     statColor: "text-rose-400",
   },
@@ -85,6 +89,9 @@ export default function ProblemStatement() {
                     <p className="mt-3 text-sm leading-relaxed text-white/60">
                       {p.description}
                     </p>
+                    {p.consequence && (
+                      <p className="mt-2 text-sm italic text-red-400/90">{p.consequence}</p>
+                    )}
                   </div>
                 </div>
               </div>

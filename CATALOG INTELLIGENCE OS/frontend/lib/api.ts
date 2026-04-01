@@ -1,15 +1,30 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
+export const DEMO_MODE_HEADER = "x-cios-demo";
+
+let _apiOnline: boolean | null = null;
+export function setApiOnline(v: boolean) { _apiOnline = v; }
+export function isApiOnline() { return _apiOnline !== false; }
+
 async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    ...options,
-  });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(error.message || `API error: ${res.status}`);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      ...options,
+    });
+    if (!res.ok) {
+      setApiOnline(true);
+      const error = await res.json().catch(() => ({ message: res.statusText }));
+      throw new Error(error.message || `API error: ${res.status}`);
+    }
+    setApiOnline(true);
+    return res.json();
+  } catch (err: unknown) {
+    if (err instanceof TypeError && (err.message.includes("fetch") || err.message.includes("network"))) {
+      setApiOnline(false);
+    }
+    throw err;
   }
-  return res.json();
 }
 
 export const api = {
