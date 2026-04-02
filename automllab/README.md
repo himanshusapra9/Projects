@@ -1,5 +1,7 @@
 # AutoMLab — Autonomous Overnight ML Experimentation Agent
 
+> Write goals in Markdown, wake up to results — autonomous experiment loop using Claude proposals, Bayesian GP optimization, git-branch sandboxing, and safety-validated code diffs.
+
 AutoMLab is an autonomous ML experimentation agent that proposes, executes, and evaluates
 experiments overnight, guided by a plain English `program.md` file. It uses Claude for
 experiment proposal generation, Gaussian Process regression for trend modeling, and
