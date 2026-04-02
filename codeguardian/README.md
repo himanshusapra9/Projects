@@ -1,5 +1,7 @@
 # CodeGuardian — Continuous AI Security & Code Quality Agent
 
+> GitHub PR security scanner — detects SQL injection, XSS, secrets, vulnerable dependencies (OSV), and business logic flaws with static analysis + Claude-powered review.
+
 CodeGuardian scans code diffs for security vulnerabilities using regex-based static
 analysis and secret detection. It processes GitHub PR webhook events and generates
 findings with severity, CWE classification, evidence, and fix suggestions.
