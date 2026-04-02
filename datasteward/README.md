@@ -1,5 +1,7 @@
 # DataSteward — Autonomous Data Pipeline Health Agent
 
+> Monitors data pipeline health — detects row count anomalies (Isolation Forest), distribution drift (KS-test), fuzzy duplicates (MinHash LSH), and generates root cause analysis via Claude.
+
 DataSteward monitors data pipeline health by profiling tables, detecting anomalies
 in row counts and metric distributions, finding near-duplicate records, predicting
 pipeline freshness, and generating root cause hypotheses. It uses statistical methods
