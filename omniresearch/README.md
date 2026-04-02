@@ -1,5 +1,7 @@
 # OmniResearch — Universal Open-Source Multi-Source Intelligence Agent
 
+> Multi-source research agent — searches academic papers, web, GitHub, YouTube, podcasts, Reddit & news, then synthesizes findings into cited reports using Claude + sentence-transformers + cross-encoder reranking.
+
 OmniResearch aggregates information across academic papers, live web, GitHub repositories,
 YouTube transcripts, podcast audio, Reddit, Hacker News, and news outlets into a single
 research workflow. It uses Claude for query planning and report synthesis, sentence-transformers
