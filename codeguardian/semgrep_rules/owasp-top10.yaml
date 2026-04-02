@@ -1,0 +1,20 @@
+rules:
+  - id: sql-injection-format-string
+    pattern: |
+      cursor.execute(f"...")
+    message: "SQL injection via f-string in cursor.execute()"
+    severity: ERROR
+    languages: [python]
+    metadata:
+      cwe: CWE-89
+      owasp: A03:2021
+
+  - id: xss-innerhtml
+    pattern: |
+      $EL.innerHTML = $VAL
+    message: "Potential XSS via innerHTML assignment"
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe: CWE-79
+      owasp: A03:2021
