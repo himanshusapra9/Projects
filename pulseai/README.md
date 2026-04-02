@@ -1,5 +1,7 @@
 # PulseAI — Customer Signal Intelligence Agent
 
+> Ingests customer feedback from Intercom, Zendesk & more — classifies sentiment, detects pain points, scores urgency, clusters insights, and flags anomalies with Isolation Forest.
+
 PulseAI processes customer feedback from multiple platforms, classifies signals by
 topic and urgency, clusters related feedback into Insight Cards, detects anomalies
 in sentiment metrics, and generates daily product briefings.
