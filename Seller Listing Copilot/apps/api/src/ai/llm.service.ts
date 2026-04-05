@@ -51,10 +51,6 @@ export class LlmService {
       this.client = new OpenAI({
         apiKey: ai.apiKey,
         baseURL: ai.baseUrl,
-        defaultHeaders: {
-          'HTTP-Referer': 'https://listingpilot.ai',
-          'X-Title': 'ListingPilot AI',
-        },
       });
     }
     return this.client;
@@ -73,16 +69,18 @@ export class LlmService {
     let lastErr: unknown;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        this.logger.log(`completeJson attempt ${attempt + 1}/${maxRetries} model=${ai.model}`);
         const res = await client.chat.completions.create({
           model: ai.model,
-          max_tokens: params.maxTokens ?? ai.maxTokens,
+          max_completion_tokens: params.maxTokens ?? ai.maxTokens,
+          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: `${params.system}\n\n${SYSTEM_GUARDRAILS}` },
             { role: 'user', content: params.user },
           ],
         });
         const text = res.choices?.[0]?.message?.content ?? '';
-        this.logger.debug(`completeJson response length: ${text.length}`);
+        this.logger.log(`completeJson response: ${text.length} chars, finish=${res.choices?.[0]?.finish_reason}`);
         const usage = res.usage;
         if (usage) {
           await this.trackUsage(
@@ -94,7 +92,7 @@ export class LlmService {
         return this.parseJsonBlock(text);
       } catch (e: unknown) {
         lastErr = e;
-        this.logger.warn(`AI request attempt ${attempt + 1} failed: ${e instanceof Error ? e.message : String(e)}`);
+        this.logger.error(`completeJson attempt ${attempt + 1} FAILED: ${this.formatError(e)}`);
         if (this.isRateLimit(e) && attempt < maxRetries - 1) {
           await this.delay(2 ** attempt * 500);
           continue;
@@ -121,13 +119,18 @@ export class LlmService {
     const client = this.ensureClient();
     const maxRetries = ai.maxRetries;
 
+    const b64Size = (Buffer.byteLength(params.imageBase64, 'utf8') / 1024 / 1024).toFixed(2);
+    this.logger.log(`visionJson: image=${b64Size}MB base64, model=${ai.model}, key=${ai.apiKey.slice(0, 8)}…`);
+
     let lastErr: unknown;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        this.logger.log(`visionJson attempt ${attempt + 1}/${maxRetries}`);
         const dataUrl = `data:${params.mediaType};base64,${params.imageBase64}`;
         const res = await client.chat.completions.create({
           model: ai.model,
-          max_tokens: ai.maxTokens,
+          max_completion_tokens: ai.maxTokens,
+          response_format: { type: 'json_object' },
           messages: [
             { role: 'system', content: `${params.system}\n\n${SYSTEM_GUARDRAILS}` },
             {
@@ -143,9 +146,13 @@ export class LlmService {
           ],
         });
         const text = res.choices?.[0]?.message?.content ?? '';
-        this.logger.debug(`visionJson response length: ${text.length}`);
+        this.logger.log(`visionJson response: ${text.length} chars, finish=${res.choices?.[0]?.finish_reason}`);
+        if (text.length < 5) {
+          this.logger.error(`visionJson: suspiciously short response: "${text}"`);
+        }
         const usage = res.usage;
         if (usage) {
+          this.logger.log(`visionJson usage: prompt=${usage.prompt_tokens}, completion=${usage.completion_tokens}`);
           await this.trackUsage(
             params.organizationId,
             usage.prompt_tokens ?? 0,
@@ -155,7 +162,7 @@ export class LlmService {
         return this.parseJsonBlock(text);
       } catch (e: unknown) {
         lastErr = e;
-        this.logger.warn(`Vision request attempt ${attempt + 1} failed: ${e instanceof Error ? e.message : String(e)}`);
+        this.logger.error(`visionJson attempt ${attempt + 1} FAILED: ${this.formatError(e)}`);
         if (this.isRateLimit(e) && attempt < maxRetries - 1) {
           await this.delay(2 ** attempt * 500);
           continue;
@@ -184,15 +191,17 @@ export class LlmService {
     let lastErr: unknown;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        this.logger.log(`completeText attempt ${attempt + 1}/${maxRetries} model=${ai.model}`);
         const res = await client.chat.completions.create({
           model: ai.model,
-          max_tokens: params.maxTokens ?? ai.maxTokens,
+          max_completion_tokens: params.maxTokens ?? ai.maxTokens,
           messages: [
             { role: 'system', content: params.system },
             { role: 'user', content: params.user },
           ],
         });
         const text = res.choices?.[0]?.message?.content ?? '';
+        this.logger.log(`completeText response: ${text.length} chars`);
         const usage = res.usage;
         if (usage) {
           await this.trackUsage(
@@ -204,7 +213,7 @@ export class LlmService {
         return text.trim();
       } catch (e: unknown) {
         lastErr = e;
-        this.logger.warn(`Text completion attempt ${attempt + 1} failed: ${e instanceof Error ? e.message : String(e)}`);
+        this.logger.error(`completeText attempt ${attempt + 1} FAILED: ${this.formatError(e)}`);
         if (this.isRateLimit(e) && attempt < maxRetries - 1) {
           await this.delay(2 ** attempt * 500);
           continue;
@@ -249,6 +258,17 @@ export class LlmService {
         data: { monthlyTokenUsage: { increment: total } },
       });
     }
+  }
+
+  private formatError(err: unknown): string {
+    if (err && typeof err === 'object') {
+      const e = err as Record<string, unknown>;
+      const status = 'status' in e ? e.status : undefined;
+      const code = 'code' in e ? e.code : undefined;
+      const msg = err instanceof Error ? err.message : JSON.stringify(e).slice(0, 300);
+      return `[status=${status ?? '?'} code=${code ?? '?'}] ${msg}`;
+    }
+    return String(err);
   }
 
   private isRateLimit(err: unknown): boolean {
