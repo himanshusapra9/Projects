@@ -19,6 +19,7 @@ function resolveBaseUrl(): string {
 export const api: AxiosInstance = axios.create({
   headers: {
     "Content-Type": "application/json",
+    "ngrok-skip-browser-warning": "true",
   },
   withCredentials: false,
 });
