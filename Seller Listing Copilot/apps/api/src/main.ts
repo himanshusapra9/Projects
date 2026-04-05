@@ -29,8 +29,19 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  const corsOrigins = process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()) ?? [];
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? true,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      const allowed = corsOrigins.length === 0 || corsOrigins.some((pattern) => {
+        if (pattern.includes('*')) {
+          const regex = new RegExp('^' + pattern.replace(/\./g, '\\.').replace(/\*/g, '.*') + '$');
+          return regex.test(origin);
+        }
+        return pattern === origin;
+      });
+      callback(null, allowed);
+    },
     credentials: true,
   });
 
