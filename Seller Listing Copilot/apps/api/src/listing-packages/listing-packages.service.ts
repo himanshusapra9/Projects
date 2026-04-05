@@ -65,7 +65,7 @@ export class ListingPackagesService {
       return [];
     };
 
-    const description = str('description');
+    const description = str('human_description') ?? str('description');
     const bullets: string[] = [];
     const features = arr('notable_features');
     if (features.length) bullets.push(...features.map(f => f));
@@ -82,7 +82,7 @@ export class ListingPackagesService {
     if (str('category')) keywords.push(str('category')!.toLowerCase());
 
     const channelAttrs = { ...attrs };
-    for (const skip of ['description', 'notable_features', 'certifications', 'text_on_product']) {
+    for (const skip of ['description', 'human_description', 'notable_features', 'certifications', 'text_on_product']) {
       delete channelAttrs[skip];
     }
 

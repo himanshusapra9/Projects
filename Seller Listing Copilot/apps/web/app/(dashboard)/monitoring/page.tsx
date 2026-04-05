@@ -16,17 +16,20 @@ type Monitor = {
   healthScore: number;
   lastCheckedAt: string;
   createdAt: string;
+  product?: { title: string };
 };
 
 type Remediation = {
   id: string;
   monitorId: string;
   type: string;
-  severity: string;
+  title: string;
   description: string;
-  suggestedAction: string;
+  impactScore: number;
+  suggestedFixJson: Record<string, unknown>;
   status: string;
   createdAt: string;
+  rankedImpact?: number;
 };
 
 function formatDate(iso: string): string {
@@ -111,10 +114,7 @@ export default function MonitoringPage() {
       n > 0
         ? monitors.reduce((acc, m) => acc + normalizeHealthFraction(m.healthScore), 0) / n
         : null;
-    const highSeverityRemediations = remediations.filter((r) => {
-      const s = r.severity.toLowerCase();
-      return s === "critical" || s === "high";
-    }).length;
+    const highSeverityRemediations = remediations.filter((r) => r.impactScore >= 80).length;
     return {
       monitorCount: n,
       remediationCount: remediations.length,
@@ -228,10 +228,14 @@ export default function MonitoringPage() {
                         </Badge>
                       </div>
                       <CardTitle className="text-base font-medium text-foreground">
-                        Health {formatHealthScore(m.healthScore)}
+                        {m.product?.title ?? "Untitled Product"}
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2 text-sm text-foreground-muted">
+                      <p>
+                        <span className="text-foreground-muted">Health: </span>
+                        <span className="font-semibold text-foreground">{formatHealthScore(m.healthScore)}</span>
+                      </p>
                       <p>
                         <span className="text-foreground-muted">Last checked: </span>
                         {formatDate(m.lastCheckedAt)}
@@ -256,29 +260,40 @@ export default function MonitoringPage() {
               </p>
             ) : (
               <div className="space-y-3">
-                {remediations.map((r) => (
-                  <Card key={r.id} className="border-border bg-surface">
-                    <CardHeader className="flex flex-row flex-wrap items-center gap-2 space-y-0 pb-2">
-                      <Badge variant={severityBadgeVariant(r.severity)}>
-                        {r.severity}
-                      </Badge>
-                      <Badge variant="outline">{r.type.replaceAll("_", " ")}</Badge>
-                      <Badge variant="outline">{r.status.replaceAll("_", " ")}</Badge>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-sm text-foreground">{r.description}</p>
-                      <div className="rounded-md border border-border bg-background/50 px-3 py-2">
-                        <p className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                          Suggested action
+                {remediations.map((r) => {
+                  const impactSeverity = r.impactScore >= 80 ? "critical" : r.impactScore >= 50 ? "medium" : "low";
+                  const suggestedAction = r.suggestedFixJson
+                    ? Object.entries(r.suggestedFixJson).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join(", ")
+                    : "No suggested fix available";
+                  return (
+                    <Card key={r.id} className="border-border bg-surface">
+                      <CardHeader className="space-y-1 pb-2">
+                        <div className="flex flex-row flex-wrap items-center gap-2">
+                          <Badge variant={severityBadgeVariant(impactSeverity)}>
+                            Impact: {r.impactScore}
+                          </Badge>
+                          <Badge variant="outline">{r.type.replaceAll("_", " ")}</Badge>
+                          <Badge variant="outline">{r.status.replaceAll("_", " ")}</Badge>
+                        </div>
+                        {r.title && (
+                          <p className="text-sm font-medium text-foreground">{r.title}</p>
+                        )}
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        <p className="text-sm text-foreground">{r.description}</p>
+                        <div className="rounded-md border border-border bg-background/50 px-3 py-2">
+                          <p className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                            Suggested fix
+                          </p>
+                          <p className="mt-1 text-sm text-foreground">{suggestedAction}</p>
+                        </div>
+                        <p className="text-xs text-foreground-muted">
+                          Monitor {r.monitorId} · {formatDate(r.createdAt)}
                         </p>
-                        <p className="mt-1 text-sm text-foreground">{r.suggestedAction}</p>
-                      </div>
-                      <p className="text-xs text-foreground-muted">
-                        Monitor {r.monitorId} · {formatDate(r.createdAt)}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </section>

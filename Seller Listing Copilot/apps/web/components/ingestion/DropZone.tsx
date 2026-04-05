@@ -10,7 +10,7 @@ import { useCallback } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 import { cn } from "@/lib/utils";
 
-const ACCEPT = {
+const ACCEPT_ALL = {
   "image/*": [".png", ".jpg", ".jpeg", ".webp", ".gif"],
   "text/csv": [".csv"],
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
@@ -20,13 +20,27 @@ const ACCEPT = {
   "application/pdf": [".pdf"],
 };
 
+const ACCEPT_IMAGES = {
+  "image/*": [".png", ".jpg", ".jpeg", ".webp", ".gif"],
+};
+
 export interface DropZoneProps {
   onFiles: (files: File[]) => void;
   disabled?: boolean;
   className?: string;
+  maxFiles?: number;
+  imagesOnly?: boolean;
+  hint?: string;
 }
 
-export function DropZone({ onFiles, disabled, className }: DropZoneProps) {
+export function DropZone({
+  onFiles,
+  disabled,
+  className,
+  maxFiles = 20,
+  imagesOnly = false,
+  hint,
+}: DropZoneProps) {
   const onDrop = useCallback(
     (accepted: File[]) => {
       if (accepted.length) onFiles(accepted);
@@ -38,13 +52,15 @@ export function DropZone({ onFiles, disabled, className }: DropZoneProps) {
     console.warn("Rejected files", rej);
   }, []);
 
+  const accept = imagesOnly ? ACCEPT_IMAGES : ACCEPT_ALL;
+
   const { getRootProps, getInputProps, isDragActive, fileRejections } =
     useDropzone({
       onDrop,
       onDropRejected,
       disabled,
-      accept: ACCEPT,
-      maxFiles: 20,
+      accept,
+      maxFiles,
     });
 
   return (
@@ -64,21 +80,27 @@ export function DropZone({ onFiles, disabled, className }: DropZoneProps) {
         <p className="text-center text-sm font-medium text-foreground">
           {isDragActive
             ? "Drop files to upload"
-            : "Drag & drop images, CSV, XLSX, or PDF"}
+            : imagesOnly
+              ? `Drag & drop up to ${maxFiles} product images`
+              : "Drag & drop images, CSV, XLSX, or PDF"}
         </p>
         <p className="mt-1 text-center text-xs text-foreground-muted">
-          Up to 20 files · max 50MB each
+          {hint ?? `Up to ${maxFiles} files · max 50MB each`}
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-3 text-[10px] uppercase text-foreground-muted">
           <span className="inline-flex items-center gap-1">
             <ImageIcon className="h-3 w-3" /> Images
           </span>
-          <span className="inline-flex items-center gap-1">
-            <FileSpreadsheet className="h-3 w-3" /> CSV / XLSX
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <FileText className="h-3 w-3" /> PDF
-          </span>
+          {!imagesOnly && (
+            <>
+              <span className="inline-flex items-center gap-1">
+                <FileSpreadsheet className="h-3 w-3" /> CSV / XLSX
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <FileText className="h-3 w-3" /> PDF
+              </span>
+            </>
+          )}
         </div>
         {fileRejections.length > 0 && (
           <p className="mt-3 text-xs text-error">

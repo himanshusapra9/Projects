@@ -206,16 +206,29 @@ export class IngestAssetProcessor {
         const strValue = Array.isArray(value) ? value.join(', ') : String(value);
         if (!strValue || strValue === 'null') continue;
 
-        await this.prisma.attribute.create({
-          data: {
-            productId,
-            fieldName: field,
-            value: strValue,
-            confidence: 0.8,
-            method: ExtractionMethod.IMAGE_VISION,
-            requiresReview: true,
-          },
+        const existing = await this.prisma.attribute.findFirst({
+          where: { productId, fieldName: field },
         });
+
+        if (existing) {
+          if (existing.value !== strValue && strValue.length > existing.value.length) {
+            await this.prisma.attribute.update({
+              where: { id: existing.id },
+              data: { value: strValue, confidence: Math.max(existing.confidence, 0.8) },
+            });
+          }
+        } else {
+          await this.prisma.attribute.create({
+            data: {
+              productId,
+              fieldName: field,
+              value: strValue,
+              confidence: 0.8,
+              method: ExtractionMethod.IMAGE_VISION,
+              requiresReview: true,
+            },
+          });
+        }
       }
 
       const productTitle =
@@ -267,11 +280,79 @@ export class IngestAssetProcessor {
     if (assetsForJob.length > 0 && evidenceCount >= assetsForJob.length) {
       await this.prisma.ingestionJob.update({
         where: { id: ingestionJobId },
+        data: { status: IngestionStatus.BUILDING },
+      });
+      this.logger.log(`Ingestion job=${ingestionJobId} → BUILDING (generating description)`);
+
+      await this.generateHumanDescription(ingestionJobId);
+
+      await this.prisma.ingestionJob.update({
+        where: { id: ingestionJobId },
         data: { status: IngestionStatus.COMPLETE },
       });
       this.logger.log(`Ingestion job=${ingestionJobId} marked COMPLETE`);
 
       await this.autoGenerateListings(ingestionJobId);
+    }
+  }
+
+  private async generateHumanDescription(ingestionJobId: string): Promise<void> {
+    try {
+      const product = await this.prisma.product.findFirst({
+        where: { ingestionJobId },
+        include: { attributes: true },
+      });
+      if (!product) return;
+
+      const attrMap: Record<string, string> = {};
+      for (const attr of product.attributes) {
+        if (!attr.fieldName.startsWith('ingestion.') && attr.value) {
+          attrMap[attr.fieldName] = attr.value;
+        }
+      }
+
+      if (Object.keys(attrMap).length === 0) {
+        this.logger.warn(`No attributes to build description for product=${product.id}`);
+        return;
+      }
+
+      this.logger.log(`Generating human description for product=${product.id}`);
+
+      const description = await this.vision.generateHumanDescription({
+        organizationId: product.organizationId,
+        title: product.title ?? 'Untitled Product',
+        attributes: attrMap,
+      });
+
+      if (!description) return;
+
+      const existing = await this.prisma.attribute.findFirst({
+        where: { productId: product.id, fieldName: 'human_description' },
+      });
+
+      if (existing) {
+        await this.prisma.attribute.update({
+          where: { id: existing.id },
+          data: { value: description },
+        });
+      } else {
+        await this.prisma.attribute.create({
+          data: {
+            productId: product.id,
+            fieldName: 'human_description',
+            value: description,
+            confidence: 0.9,
+            method: ExtractionMethod.LLM_INFERENCE,
+            requiresReview: true,
+          },
+        });
+      }
+
+      this.logger.log(`Human description generated (${description.length} chars) for product=${product.id}`);
+    } catch (err) {
+      this.logger.warn(
+        `Human description generation failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 

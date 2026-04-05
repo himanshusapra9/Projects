@@ -158,6 +158,55 @@ export class ClaudeService {
     );
   }
 
+  async completeText(params: {
+    organizationId: string;
+    system: string;
+    user: string;
+    maxTokens?: number;
+  }): Promise<string> {
+    const ai = this.getAi();
+    const client = this.ensureClient();
+    const maxRetries = ai.maxRetries;
+
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const res = await client.chat.completions.create({
+          model: ai.model,
+          max_tokens: params.maxTokens ?? ai.maxTokens,
+          messages: [
+            { role: 'system', content: params.system },
+            { role: 'user', content: params.user },
+          ],
+        });
+        const text = res.choices?.[0]?.message?.content ?? '';
+        const usage = res.usage;
+        if (usage) {
+          await this.trackUsage(
+            params.organizationId,
+            usage.prompt_tokens ?? 0,
+            usage.completion_tokens ?? 0,
+          );
+        }
+        return text.trim();
+      } catch (e: unknown) {
+        lastErr = e;
+        this.logger.warn(`Text completion attempt ${attempt + 1} failed: ${e instanceof Error ? e.message : String(e)}`);
+        if (this.isRateLimit(e) && attempt < maxRetries - 1) {
+          await this.delay(2 ** attempt * 500);
+          continue;
+        }
+        if (attempt < maxRetries - 1) {
+          await this.delay(2 ** attempt * 300);
+          continue;
+        }
+      }
+    }
+    throw new ServiceUnavailableException(
+      lastErr instanceof Error ? lastErr.message : 'AI text request failed',
+    );
+  }
+
   private parseJsonBlock(text: string): Record<string, unknown> {
     const trimmed = text.trim();
     const start = trimmed.indexOf('{');

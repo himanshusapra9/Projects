@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   ArrowRight,
   Check,
+  Eye,
   Loader2,
   Pencil,
   Save,
@@ -78,13 +79,39 @@ function methodLabel(m: string): string {
 const FIELD_ORDER = [
   "title",
   "brand",
+  "manufacturer",
   "category",
+  "subcategory",
+  "certification_company",
+  "certification_number",
+  "grade",
+  "authentication_details",
+  "player_name",
+  "team",
+  "card_number",
+  "card_set",
+  "card_year",
+  "serial_number",
+  "edition",
+  "variant",
+  "rarity",
+  "autograph",
+  "memorabilia_type",
+  "human_description",
   "description",
   "notable_features",
   "color",
   "material",
+  "size",
   "condition",
+  "year",
+  "country_of_origin",
+  "model",
+  "model_number",
   "certifications",
+  "visible_labels",
+  "logos_visible",
+  "barcodes_visible",
   "text_on_product",
 ];
 
@@ -97,6 +124,7 @@ function isLongField(fieldName: string): boolean {
   const lower = fieldName.toLowerCase();
   return (
     lower === "description" ||
+    lower === "human_description" ||
     lower === "notable_features" ||
     lower === "text_on_product"
   );
@@ -150,9 +178,18 @@ export default function ReviewListingPage() {
     fetchData();
   }, [fetchData]);
 
-  const displayAttrs = attributes
-    .filter((a) => !a.fieldName.startsWith("ingestion."))
-    .sort((a, b) => fieldSortKey(a.fieldName) - fieldSortKey(b.fieldName));
+  const displayAttrs = (() => {
+    const seen = new Map<string, Attribute>();
+    for (const a of attributes) {
+      if (a.fieldName.startsWith("ingestion.")) continue;
+      const key = a.fieldName.toLowerCase();
+      const existing = seen.get(key);
+      if (!existing || a.value.length > existing.value.length || a.confidence > existing.confidence) {
+        seen.set(key, a);
+      }
+    }
+    return Array.from(seen.values());
+  })().sort((a, b) => fieldSortKey(a.fieldName) - fieldSortKey(b.fieldName));
 
   const startEdit = (attrId: string, currentValue: string) => {
     setEditing((prev) => ({ ...prev, [attrId]: currentValue }));
@@ -246,6 +283,12 @@ export default function ReviewListingPage() {
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
             <Link href={`/products/${id}`}>Back to product</Link>
+          </Button>
+          <Button variant="secondary" asChild className="gap-2">
+            <Link href={`/products/${id}/preview`}>
+              <Eye className="h-4 w-4" />
+              Preview Listing
+            </Link>
           </Button>
           <Button asChild className="gap-2">
             <Link href={`/products/${id}/channels`}>
@@ -524,6 +567,15 @@ export default function ReviewListingPage() {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-3 pt-2">
+            <Button
+              size="lg"
+              variant="secondary"
+              className="gap-2"
+              onClick={() => router.push(`/products/${id}/preview`)}
+            >
+              <Eye className="h-4 w-4" />
+              Preview Listing
+            </Button>
             <Button
               size="lg"
               className="gap-2"

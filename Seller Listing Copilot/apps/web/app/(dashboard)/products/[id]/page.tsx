@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CheckCircle2,
   ExternalLink,
+  Eye,
   Loader2,
   Package,
   Pencil,
@@ -69,22 +70,32 @@ const ATTR_GROUPS: { label: string; icon: React.ReactNode; keys: string[] }[] = 
   {
     label: "Product Identity",
     icon: <Tag className="h-4 w-4" />,
-    keys: ["title", "brand", "category", "model", "modelNumber"],
+    keys: ["title", "brand", "manufacturer", "category", "subcategory", "model", "model_number", "year", "country_of_origin"],
+  },
+  {
+    label: "Grading & Authentication",
+    icon: <ShieldCheck className="h-4 w-4" />,
+    keys: ["certification_company", "certification_number", "grade", "authentication_details", "serial_number"],
+  },
+  {
+    label: "Card / Collectible Details",
+    icon: <Sparkles className="h-4 w-4" />,
+    keys: ["player_name", "team", "card_number", "card_set", "card_year", "edition", "variant", "rarity", "autograph", "memorabilia_type"],
   },
   {
     label: "Physical Attributes",
     icon: <Package className="h-4 w-4" />,
-    keys: ["color", "material", "condition", "weight", "dimensions"],
+    keys: ["color", "material", "size", "condition", "weight", "dimensions"],
   },
   {
     label: "Description & Features",
     icon: <Sparkles className="h-4 w-4" />,
-    keys: ["description", "notable_features", "text_on_product"],
+    keys: ["description", "human_description", "notable_features", "text_on_product", "visible_labels", "logos_visible"],
   },
   {
     label: "Certifications & Compliance",
     icon: <ShieldCheck className="h-4 w-4" />,
-    keys: ["certifications", "safety", "compliance", "voltage", "wattage"],
+    keys: ["certifications", "safety", "compliance", "voltage", "wattage", "barcodes_visible"],
   },
 ];
 
@@ -198,9 +209,18 @@ export default function ProductTruthPage() {
     );
   }
 
-  const displayAttrs = attributes.filter(
-    (a) => !a.fieldName.startsWith("ingestion."),
-  );
+  const displayAttrs = (() => {
+    const seen = new Map<string, Attribute>();
+    for (const a of attributes) {
+      if (a.fieldName.startsWith("ingestion.")) continue;
+      const key = a.fieldName.toLowerCase();
+      const existing = seen.get(key);
+      if (!existing || a.value.length > existing.value.length || a.confidence > existing.confidence) {
+        seen.set(key, a);
+      }
+    }
+    return Array.from(seen.values());
+  })();
 
   const groupedAttrs = ATTR_GROUPS.map((g) => ({
     ...g,
@@ -284,9 +304,15 @@ export default function ProductTruthPage() {
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col">
           <Button asChild className="gap-2">
+            <Link href={`/products/${id}/preview`}>
+              <Eye className="h-4 w-4" />
+              Preview Listing
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild className="gap-2">
             <Link href={`/products/${id}/review`}>
               <Pencil className="h-4 w-4" />
-              Review Completed Listing
+              Review & Edit
             </Link>
           </Button>
           {packages.length === 0 ? (
