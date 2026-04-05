@@ -7,19 +7,16 @@ import axios, {
 import type { ApiResponse } from "@listingpilot/shared-types";
 
 const TOKEN_HEADER = "Authorization";
+const LOCALHOST_API = "http://localhost:4000/api/v1";
 
-function getBaseUrl(): string {
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "");
-  }
-  if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
-    return `${window.location.origin}/api/v1`;
-  }
-  return "http://localhost:4000/api/v1";
+function resolveBaseUrl(): string {
+  if (typeof window === "undefined") return LOCALHOST_API;
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") return LOCALHOST_API;
+  return `${window.location.origin}/api/v1`;
 }
 
 export const api: AxiosInstance = axios.create({
-  baseURL: getBaseUrl(),
   headers: {
     "Content-Type": "application/json",
   },
@@ -27,10 +24,12 @@ export const api: AxiosInstance = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  if (typeof window === "undefined") return config;
-  const token = window.localStorage.getItem("listingpilot_auth_token");
-  if (token) {
-    config.headers.set(TOKEN_HEADER, `Bearer ${token}`);
+  config.baseURL = resolveBaseUrl();
+  if (typeof window !== "undefined") {
+    const token = window.localStorage.getItem("listingpilot_auth_token");
+    if (token) {
+      config.headers.set(TOKEN_HEADER, `Bearer ${token}`);
+    }
   }
   return config;
 });
