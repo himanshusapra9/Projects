@@ -152,8 +152,8 @@ export default function ProductTruthPage() {
       setLoading(true);
       const [prod, attrs, evs, pkgs] = await Promise.all([
         apiGet<Product>(`/products/${id}`),
-        apiGet<Attribute[]>(`/products/${id}/attributes`),
-        apiGet<Evidence[]>(`/products/${id}/evidence`),
+        apiGet<Attribute[]>(`/products/${id}/attributes`).catch(() => [] as Attribute[]),
+        apiGet<Evidence[]>(`/products/${id}/evidence`).catch(() => [] as Evidence[]),
         apiGet<ListingPackage[]>(`/listing-packages/product/${id}`).catch(
           () => [] as ListingPackage[],
         ),

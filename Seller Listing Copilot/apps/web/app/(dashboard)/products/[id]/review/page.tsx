@@ -165,7 +165,7 @@ export default function ReviewListingPage() {
       setLoading(true);
       const [prod, attrs, imgs] = await Promise.all([
         apiGet<Product>(`/products/${id}`),
-        apiGet<Attribute[]>(`/products/${id}/attributes`),
+        apiGet<Attribute[]>(`/products/${id}/attributes`).catch(() => [] as Attribute[]),
         apiGet<ProductImage[]>(`/products/${id}/images`).catch(
           () => [] as ProductImage[],
         ),

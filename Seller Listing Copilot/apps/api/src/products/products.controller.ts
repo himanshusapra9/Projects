@@ -19,6 +19,8 @@ import type { Response } from 'express';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { JwtAuthGuard, Public } from '@/auth/guards/jwt-auth.guard';
 import { RequestUser } from '@/auth/interfaces/request-user.interface';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { CreateAttributeDto } from './dto/create-attribute.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -29,7 +31,10 @@ import { ProductsService } from './products.service';
 @UseGuards(JwtAuthGuard)
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly products: ProductsService) {}
+  constructor(
+    private readonly products: ProductsService,
+    @InjectQueue('ingest-asset') private readonly ingestQueue: Queue,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List products' })
@@ -143,6 +148,27 @@ export class ProductsController {
   ) {
     const data = await this.products.linkEvidence(user.organizationId, id, body);
     return { success: true, data };
+  }
+
+  @Post(':id/retry-extraction')
+  @ApiOperation({ summary: 'Re-run AI extraction for all assets of this product' })
+  async retryExtraction(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    const product = await this.products.getById(user.organizationId, id);
+    if (!product.ingestionJobId) {
+      return { success: true, data: { queued: 0, message: 'No ingestion job linked to this product' } };
+    }
+    await this.products.clearExtractionErrors(id);
+    const assets = await this.products.getSourceAssets(product.ingestionJobId);
+    let queued = 0;
+    for (const asset of assets) {
+      await this.ingestQueue.add('process', {
+        organizationId: user.organizationId,
+        ingestionJobId: product.ingestionJobId,
+        sourceAssetId: asset.id,
+      }, { attempts: 3, timeout: 5 * 60 * 1000, removeOnComplete: true });
+      queued++;
+    }
+    return { success: true, data: { queued, message: `Re-queued ${queued} asset(s) for AI extraction` } };
   }
 
   @Get(':id')

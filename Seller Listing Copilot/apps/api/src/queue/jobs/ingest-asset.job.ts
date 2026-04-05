@@ -254,9 +254,19 @@ export class IngestAssetProcessor {
         },
       });
     } catch (err) {
-      this.logger.warn(
-        `AI vision extraction failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
-      );
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`AI vision extraction failed (non-fatal): ${errMsg}`);
+
+      await this.prisma.attribute.create({
+        data: {
+          productId,
+          fieldName: 'ingestion.ai_extraction_error',
+          value: errMsg.slice(0, 500),
+          confidence: 1,
+          method: ExtractionMethod.STRUCTURED_PARSE,
+          requiresReview: false,
+        },
+      }).catch(() => { /* best-effort */ });
     }
   }
 

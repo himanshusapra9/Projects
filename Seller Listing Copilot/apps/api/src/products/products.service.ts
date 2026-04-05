@@ -220,6 +220,19 @@ export class ProductsService {
     return { buffer, mimeType: asset.mimeType };
   }
 
+  async clearExtractionErrors(productId: string) {
+    await this.prisma.attribute.deleteMany({
+      where: { productId, fieldName: 'ingestion.ai_extraction_error' },
+    });
+  }
+
+  async getSourceAssets(ingestionJobId: string) {
+    return this.prisma.sourceAsset.findMany({
+      where: { ingestionJobId },
+      select: { id: true, type: true },
+    });
+  }
+
   private async ensureOrg(organizationId: string, productId: string): Promise<void> {
     const p = await this.prisma.product.findFirst({
       where: { id: productId, organizationId },
