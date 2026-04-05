@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/ensure-env.js",
     "dev": "nest start --watch",
     "build": "nest build",
+    "prestart": "node scripts/ensure-env.js",
     "start": "node dist/main",
     "test": "jest --config test/jest.config.ts",
     "test:e2e": "jest --config test/jest-e2e.config.ts",
