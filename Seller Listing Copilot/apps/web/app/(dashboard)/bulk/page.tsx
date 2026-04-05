@@ -1,165 +1,300 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Layers, ArrowUpCircle, RefreshCw, Trash2, FolderSync } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { isAxiosError } from "axios";
+import { Loader2, Layers, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import type { PaginatedResponse } from "@listingpilot/shared-types";
+import { apiGet, apiPost } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
-type BulkOpType = "PUBLISH" | "RELIST" | "DELIST" | "CATEGORY_REMAP";
-
-const mockOperations = [
-  {
-    id: "1",
-    type: "PUBLISH" as BulkOpType,
-    status: "COMPLETED",
-    totalItems: 15,
-    processedItems: 15,
-    failedItems: 1,
-    createdAt: "2026-03-30T10:00:00Z",
-  },
-  {
-    id: "2",
-    type: "RELIST" as BulkOpType,
-    status: "PROCESSING",
-    totalItems: 8,
-    processedItems: 5,
-    failedItems: 0,
-    createdAt: "2026-03-31T14:00:00Z",
-  },
-];
-
-const OP_ICONS: Record<BulkOpType, typeof ArrowUpCircle> = {
-  PUBLISH: ArrowUpCircle,
-  RELIST: RefreshCw,
-  DELIST: Trash2,
-  CATEGORY_REMAP: FolderSync,
+type Product = {
+  id: string;
+  title: string | null;
+  status: string;
 };
 
-const OP_LABELS: Record<BulkOpType, string> = {
-  PUBLISH: "Bulk Publish",
-  RELIST: "Bulk Relist",
-  DELIST: "Bulk Delist",
-  CATEGORY_REMAP: "Category Remap",
-};
+const CHANNEL_OPTIONS = [
+  { value: "AMAZON", label: "Amazon" },
+  { value: "EBAY", label: "eBay" },
+  { value: "WALMART", label: "Walmart" },
+  { value: "SHOPIFY", label: "Shopify" },
+  { value: "ETSY", label: "Etsy" },
+] as const;
+
+function toggleSet<T>(set: Set<T>, key: T, on: boolean): Set<T> {
+  const next = new Set(set);
+  if (on) next.add(key);
+  else next.delete(key);
+  return next;
+}
 
 export default function BulkOpsPage() {
-  const [selectedOp, setSelectedOp] = useState<BulkOpType>("PUBLISH");
-  const [selectedProducts] = useState<string[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [selectedChannels, setSelectedChannels] = useState<Set<string>>(
+    () => new Set(),
+  );
+
+  const [publishing, setPublishing] = useState(false);
+
+  const loadProducts = useCallback(async () => {
+    setLoadingProducts(true);
+    setLoadError(null);
+    try {
+      const res = await apiGet<PaginatedResponse<Product>>(
+        "/products?limit=100",
+      );
+      setProducts(res.data);
+      setSelectedProductIds(new Set());
+    } catch (e) {
+      const msg = isAxiosError(e)
+        ? (e.response?.data as { error?: string })?.error ??
+          e.message ??
+          "Failed to load products"
+        : e instanceof Error
+          ? e.message
+          : "Failed to load products";
+      setLoadError(msg);
+      toast.error(msg);
+    } finally {
+      setLoadingProducts(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadProducts();
+  }, [loadProducts]);
+
+  const allProductsSelected = useMemo(() => {
+    if (products.length === 0) return false;
+    return products.every((p) => selectedProductIds.has(p.id));
+  }, [products, selectedProductIds]);
+
+  const someProductsSelected = useMemo(() => {
+    if (products.length === 0) return false;
+    const n = products.filter((p) => selectedProductIds.has(p.id)).length;
+    return n > 0 && n < products.length;
+  }, [products, selectedProductIds]);
+
+  const headerCheckboxState = allProductsSelected
+    ? true
+    : someProductsSelected
+      ? "indeterminate"
+      : false;
+
+  const toggleSelectAllProducts = (checked: boolean) => {
+    if (checked) {
+      setSelectedProductIds(new Set(products.map((p) => p.id)));
+    } else {
+      setSelectedProductIds(new Set());
+    }
+  };
+
+  const toggleProduct = (id: string, checked: boolean) => {
+    setSelectedProductIds((prev) => toggleSet(prev, id, checked));
+  };
+
+  const toggleChannel = (value: string, checked: boolean) => {
+    setSelectedChannels((prev) => toggleSet(prev, value, checked));
+  };
+
+  const handleBulkPublish = async () => {
+    if (selectedProductIds.size === 0) {
+      toast.error("Select at least one product.");
+      return;
+    }
+    if (selectedChannels.size === 0) {
+      toast.error("Select at least one channel.");
+      return;
+    }
+
+    setPublishing(true);
+    try {
+      const result = await apiPost<{ operationId: string }, { productIds: string[]; channels: string[] }>(
+        "/bulk/publish",
+        {
+          productIds: Array.from(selectedProductIds),
+          channels: Array.from(selectedChannels),
+        },
+      );
+      toast.success(
+        `Bulk publish started${result.operationId ? ` (${result.operationId})` : ""}.`,
+      );
+    } catch (e) {
+      const msg = isAxiosError(e)
+        ? (e.response?.data as { error?: string })?.error ??
+          e.message ??
+          "Bulk publish failed"
+        : e instanceof Error
+          ? e.message
+          : "Bulk publish failed";
+      toast.error(msg);
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   return (
     <div className="space-y-8 p-6">
       <div>
-        <h1 className="text-xl font-semibold text-text-primary tracking-tight">
-          Bulk Operations
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          Bulk publish
         </h1>
-        <p className="mt-1 text-sm text-text-secondary">
-          Perform bulk actions across products and channels.
+        <p className="mt-1 text-sm text-foreground-muted">
+          Choose products and marketplaces, then start a bulk publish job.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {(Object.keys(OP_LABELS) as BulkOpType[]).map((op) => {
-          const Icon = OP_ICONS[op];
-          return (
-            <button
-              key={op}
-              type="button"
-              onClick={() => setSelectedOp(op)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg border p-4 text-left transition-all",
-                selectedOp === op
-                  ? "border-indigo-500/50 bg-indigo-950/20 shadow-glow-indigo"
-                  : "border-border bg-bg-surface hover:border-border-bright",
-              )}
+      <div className="rounded-lg border border-border bg-surface p-5">
+        <h2 className="text-sm font-medium text-foreground-muted">Channels</h2>
+        <p className="mt-1 text-xs text-foreground-muted">
+          Select one or more channels to publish to.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-4">
+          {CHANNEL_OPTIONS.map((ch) => (
+            <label
+              key={ch.value}
+              className="flex cursor-pointer items-center gap-2"
             >
-              <Icon
-                className={cn(
-                  "h-5 w-5",
-                  selectedOp === op ? "text-indigo-400" : "text-text-tertiary",
-                )}
+              <Checkbox
+                checked={selectedChannels.has(ch.value)}
+                onCheckedChange={(v) => toggleChannel(ch.value, v === true)}
+                disabled={publishing}
               />
-              <span
-                className={cn(
-                  "text-sm font-medium",
-                  selectedOp === op ? "text-text-primary" : "text-text-secondary",
-                )}
-              >
-                {OP_LABELS[op]}
-              </span>
-            </button>
-          );
-        })}
+              <span className="text-sm text-foreground">{ch.label}</span>
+            </label>
+          ))}
+        </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-bg-surface p-5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-text-secondary">
-            Select Products
-          </h2>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-text-tertiary">
-              {selectedProducts.length} selected
-            </span>
-            <Button size="sm" disabled={selectedProducts.length === 0}>
-              <Layers className="mr-2 h-3.5 w-3.5" />
-              Run {OP_LABELS[selectedOp]}
+      <div className="rounded-lg border border-border bg-surface p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-medium text-foreground-muted">
+              Products
+            </h2>
+            <p className="mt-1 text-xs text-foreground-muted">
+              Up to 100 products loaded. {selectedProductIds.size} selected.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void loadProducts()}
+              disabled={loadingProducts || publishing}
+            >
+              {loadingProducts ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-3.5 w-3.5" />
+              )}
+              Refresh
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void handleBulkPublish()}
+              disabled={
+                loadingProducts ||
+                publishing ||
+                selectedProductIds.size === 0 ||
+                selectedChannels.size === 0
+              }
+            >
+              {publishing ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Layers className="mr-2 h-3.5 w-3.5" />
+              )}
+              Bulk publish
             </Button>
           </div>
         </div>
-        <div className="mt-4 text-center text-sm text-text-tertiary">
-          Product selection table with filters will render here.
-          <br />
-          Select products by status, channel, or confidence level.
-        </div>
-      </div>
 
-      <div className="rounded-lg border border-border bg-bg-surface p-5">
-        <h2 className="mb-4 text-sm font-medium text-text-secondary">
-          Recent Operations
-        </h2>
-        <div className="space-y-3">
-          {mockOperations.map((op) => {
-            const Icon = OP_ICONS[op.type];
-            const progress = Math.round((op.processedItems / op.totalItems) * 100);
-            return (
-              <div
-                key={op.id}
-                className="flex items-center gap-4 rounded-md border border-border bg-bg-elevated p-3"
-              >
-                <Icon className="h-4 w-4 text-text-tertiary" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm text-text-primary">{OP_LABELS[op.type]}</div>
-                  <div className="text-2xs text-text-tertiary">
-                    {op.processedItems}/{op.totalItems} items
-                    {op.failedItems > 0 && ` · ${op.failedItems} failed`}
-                  </div>
-                </div>
-                <div className="w-32">
-                  <div className="h-1.5 overflow-hidden rounded-full bg-bg-overlay">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      className={cn(
-                        "h-full rounded-full",
-                        op.status === "COMPLETED" ? "bg-confidence-high" : "bg-indigo-500",
-                      )}
+        {loadError && (
+          <p className="mt-4 text-sm text-error" role="alert">
+            {loadError}
+          </p>
+        )}
+
+        <div className="mt-4 overflow-x-auto rounded-md border border-border">
+          {loadingProducts ? (
+            <div className="flex min-h-[200px] items-center justify-center gap-2 text-sm text-foreground-muted">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading products…
+            </div>
+          ) : products.length === 0 ? (
+            <div className="flex min-h-[160px] items-center justify-center px-4 text-center text-sm text-foreground-muted">
+              No products found. Create products or adjust filters elsewhere,
+              then refresh.
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-border hover:bg-transparent">
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={headerCheckboxState}
+                      onCheckedChange={(v) => toggleSelectAllProducts(v === true)}
+                      disabled={publishing}
+                      aria-label="Select all products"
                     />
-                  </div>
-                </div>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-2xs font-medium",
-                    op.status === "COMPLETED" && "bg-compliance-pass-bg text-green-300",
-                    op.status === "PROCESSING" && "bg-indigo-950/30 text-indigo-300",
-                    op.status === "FAILED" && "bg-compliance-blocking-bg text-red-300",
-                  )}
-                >
-                  {op.status}
-                </span>
-              </div>
-            );
-          })}
+                  </TableHead>
+                  <TableHead className="text-foreground-muted">Title</TableHead>
+                  <TableHead className="text-foreground-muted">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {products.map((p) => {
+                  const checked = selectedProductIds.has(p.id);
+                  return (
+                    <TableRow
+                      key={p.id}
+                      className={cn(
+                        "border-border",
+                        checked && "bg-background/40",
+                      )}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(v) =>
+                            toggleProduct(p.id, v === true)
+                          }
+                          disabled={publishing}
+                          aria-label={`Select ${p.title ?? p.id}`}
+                        />
+                      </TableCell>
+                      <TableCell className="max-w-[min(480px,50vw)] truncate font-medium text-foreground">
+                        {p.title?.trim() || "(untitled)"}
+                      </TableCell>
+                      <TableCell className="text-foreground-muted">
+                        {p.status}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </div>
     </div>

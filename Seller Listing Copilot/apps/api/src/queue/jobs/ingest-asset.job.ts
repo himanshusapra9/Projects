@@ -9,11 +9,14 @@ import {
   ProductStatus,
   ReviewStatus,
 } from '@prisma/client';
+import { Channel } from '@prisma/client';
 import { PrismaService } from '@/config/database.config';
 import { CsvProcessor } from '@/ingestion/processors/csv.processor';
 import { ImageProcessor } from '@/ingestion/processors/image.processor';
 import { PdfProcessor } from '@/ingestion/processors/pdf.processor';
+import { ListingPackagesService } from '@/listing-packages/listing-packages.service';
 import { StorageService } from '@/storage/storage.service';
+import { VisionService } from '@/ai/vision.service';
 
 export interface IngestAssetJobPayload {
   organizationId: string;
@@ -31,118 +34,229 @@ export class IngestAssetProcessor {
     private readonly image: ImageProcessor,
     private readonly csv: CsvProcessor,
     private readonly pdf: PdfProcessor,
+    private readonly vision: VisionService,
+    private readonly listingPackages: ListingPackagesService,
   ) {}
 
   @Process('process')
   async handle(job: Job<IngestAssetJobPayload>): Promise<void> {
     const { organizationId, ingestionJobId, sourceAssetId } = job.data;
-    await this.prisma.ingestionJob.updateMany({
-      where: { id: ingestionJobId, status: IngestionStatus.PENDING },
-      data: { status: IngestionStatus.PROCESSING },
-    });
-    const asset = await this.prisma.sourceAsset.findFirst({
-      where: { id: sourceAssetId, ingestionJobId },
-    });
-    if (!asset) {
-      this.logger.warn('Source asset missing');
-      return;
-    }
+    this.logger.log(`Processing ingestion job=${ingestionJobId} asset=${sourceAssetId}`);
 
-    const buffer = await this.storage.getObjectBuffer(asset.storageKey);
-    const fileHash = createHash('sha256').update(buffer).digest('hex');
+    try {
+      await this.prisma.ingestionJob.updateMany({
+        where: { id: ingestionJobId, status: IngestionStatus.PENDING },
+        data: { status: IngestionStatus.PROCESSING },
+      });
+      const asset = await this.prisma.sourceAsset.findFirst({
+        where: { id: sourceAssetId, ingestionJobId },
+      });
+      if (!asset) {
+        this.logger.warn('Source asset missing');
+        return;
+      }
 
-    let product = await this.prisma.product.findFirst({
-      where: { ingestionJobId },
-    });
-    if (!product) {
-      product = await this.prisma.product.create({
+      const buffer = await this.storage.getObjectBuffer(asset.storageKey);
+      const fileHash = createHash('sha256').update(buffer).digest('hex');
+
+      let product = await this.prisma.product.findFirst({
+        where: { ingestionJobId },
+      });
+      if (!product) {
+        product = await this.prisma.product.create({
+          data: {
+            organizationId,
+            ingestionJobId,
+            title: asset.originalFilename,
+            status: ProductStatus.DRAFT,
+            reviewStatus: ReviewStatus.NEEDS_REVIEW,
+          },
+        });
+      }
+
+      const prevMeta =
+        asset.metadataJson && typeof asset.metadataJson === 'object'
+          ? (asset.metadataJson as Record<string, unknown>)
+          : {};
+      await this.prisma.sourceAsset.update({
+        where: { id: asset.id },
         data: {
-          organizationId,
-          ingestionJobId,
-          title: asset.originalFilename,
-          status: ProductStatus.DRAFT,
-          reviewStatus: ReviewStatus.NEEDS_REVIEW,
+          checksumSha256: fileHash,
+          metadataJson: { ...prevMeta, fileHash },
         },
       });
+
+      switch (asset.type) {
+        case AssetType.IMAGE: {
+          const meta = await this.image.analyze(buffer);
+          await this.prisma.evidence.create({
+            data: {
+              productId: product.id,
+              sourceAssetId: asset.id,
+              snippet: JSON.stringify(meta),
+              explanation: 'Image analysis: dimensions and dominant colors.',
+              confidence: 0.75,
+            },
+          });
+
+          await this.prisma.ingestionJob.update({
+            where: { id: ingestionJobId },
+            data: { status: IngestionStatus.EXTRACTING },
+          });
+
+          await this.runVisionExtraction(
+            organizationId,
+            product.id,
+            asset.id,
+            buffer,
+            asset.mimeType ?? 'image/jpeg',
+          );
+          break;
+        }
+        case AssetType.PDF: {
+          const text = await this.pdf.extractText(buffer);
+          await this.prisma.evidence.create({
+            data: {
+              productId: product.id,
+              sourceAssetId: asset.id,
+              snippet: text.text.slice(0, 500),
+              explanation: `PDF text extraction, ${text.pageCount} pages.`,
+              confidence: 0.82,
+            },
+          });
+          break;
+        }
+        case AssetType.CSV:
+        case AssetType.XLSX:
+        case AssetType.SPREADSHEET: {
+          const sheet = this.csv.parseBuffer(buffer, asset.mimeType ?? '');
+          await this.prisma.evidence.create({
+            data: {
+              productId: product.id,
+              sourceAssetId: asset.id,
+              snippet: JSON.stringify(sheet.sheetNames),
+              explanation: 'Structured spreadsheet parsed.',
+              confidence: 0.88,
+            },
+          });
+          break;
+        }
+        default:
+          await this.prisma.evidence.create({
+            data: {
+              productId: product.id,
+              sourceAssetId: asset.id,
+              snippet: buffer.toString('utf8').slice(0, 400),
+              explanation: 'Raw content captured for review.',
+              confidence: 0.5,
+            },
+          });
+      }
+
+      await this.prisma.attribute.create({
+        data: {
+          productId: product.id,
+          fieldName: 'ingestion.source',
+          value: asset.originalFilename,
+          confidence: 0.9,
+          method: ExtractionMethod.STRUCTURED_PARSE,
+          requiresReview: false,
+        },
+      });
+
+      await this.markCompleteIfReady(ingestionJobId);
+    } catch (err) {
+      this.logger.error(`Ingestion failed for job=${ingestionJobId}: ${err instanceof Error ? err.message : String(err)}`);
+      await this.prisma.ingestionJob.updateMany({
+        where: { id: ingestionJobId },
+        data: {
+          status: IngestionStatus.FAILED,
+          errorMessage: err instanceof Error ? err.message : 'Unknown error',
+        },
+      });
+      throw err;
     }
+  }
 
-    const prevMeta =
-      asset.metadataJson && typeof asset.metadataJson === 'object'
-        ? (asset.metadataJson as Record<string, unknown>)
-        : {};
-    await this.prisma.sourceAsset.update({
-      where: { id: asset.id },
-      data: {
-        checksumSha256: fileHash,
-        metadataJson: { ...prevMeta, fileHash },
-      },
-    });
+  private async runVisionExtraction(
+    organizationId: string,
+    productId: string,
+    sourceAssetId: string,
+    buffer: Buffer,
+    mimeType: string,
+  ): Promise<void> {
+    try {
+      this.logger.log(`Running AI vision extraction for product=${productId}`);
+      const mediaType = this.normalizeMediaType(mimeType);
+      const imageBase64 = buffer.toString('base64');
+      const result = await this.vision.extractProductAttributes({
+        organizationId,
+        imageBase64,
+        mediaType,
+      });
 
-    switch (asset.type) {
-      case AssetType.IMAGE: {
-        const meta = await this.image.analyze(buffer);
-        await this.prisma.evidence.create({
+      this.logger.log(`AI vision returned: ${JSON.stringify(result).slice(0, 300)}`);
+
+      const attrs = (result as Record<string, unknown>) ?? {};
+      const fieldEntries = Object.entries(attrs).filter(
+        ([, v]) => v != null && v !== '',
+      );
+
+      for (const [field, value] of fieldEntries) {
+        const strValue = Array.isArray(value) ? value.join(', ') : String(value);
+        if (!strValue || strValue === 'null') continue;
+
+        await this.prisma.attribute.create({
           data: {
-            productId: product.id,
-            sourceAssetId: asset.id,
-            snippet: JSON.stringify(meta),
-            explanation: 'Image analysis: dimensions and dominant colors.',
-            confidence: 0.75,
+            productId,
+            fieldName: field,
+            value: strValue,
+            confidence: 0.8,
+            method: ExtractionMethod.IMAGE_VISION,
+            requiresReview: true,
           },
         });
-        break;
       }
-      case AssetType.PDF: {
-        const text = await this.pdf.extractText(buffer);
-        await this.prisma.evidence.create({
-          data: {
-            productId: product.id,
-            sourceAssetId: asset.id,
-            snippet: text.text.slice(0, 500),
-            explanation: `PDF text extraction, ${text.pageCount} pages.`,
-            confidence: 0.82,
-          },
+
+      const productTitle =
+        (typeof attrs['title'] === 'string' && attrs['title']) ||
+        (typeof attrs['description'] === 'string' && attrs['description']) ||
+        (typeof attrs['text_on_product'] === 'string' && attrs['text_on_product']) ||
+        (typeof attrs['category'] === 'string' && attrs['category']) ||
+        null;
+      if (productTitle) {
+        await this.prisma.product.update({
+          where: { id: productId },
+          data: { title: productTitle.slice(0, 200) },
         });
-        break;
       }
-      case AssetType.CSV:
-      case AssetType.XLSX:
-      case AssetType.SPREADSHEET: {
-        const sheet = this.csv.parseBuffer(buffer, asset.mimeType ?? '');
-        await this.prisma.evidence.create({
-          data: {
-            productId: product.id,
-            sourceAssetId: asset.id,
-            snippet: JSON.stringify(sheet.sheetNames),
-            explanation: 'Structured spreadsheet parsed.',
-            confidence: 0.88,
-          },
-        });
-        break;
-      }
-      default:
-        await this.prisma.evidence.create({
-          data: {
-            productId: product.id,
-            sourceAssetId: asset.id,
-            snippet: buffer.toString('utf8').slice(0, 400),
-            explanation: 'Raw content captured for review.',
-            confidence: 0.5,
-          },
-        });
+
+      await this.prisma.evidence.create({
+        data: {
+          productId,
+          sourceAssetId,
+          snippet: JSON.stringify(result).slice(0, 500),
+          explanation: 'AI vision extraction of product attributes.',
+          confidence: 0.8,
+        },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `AI vision extraction failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
+  }
 
-    await this.prisma.attribute.create({
-      data: {
-        productId: product.id,
-        fieldName: 'ingestion.source',
-        value: asset.originalFilename,
-        confidence: 0.9,
-        method: ExtractionMethod.STRUCTURED_PARSE,
-        requiresReview: false,
-      },
-    });
+  private normalizeMediaType(
+    mime: string,
+  ): 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp' {
+    if (mime.includes('png')) return 'image/png';
+    if (mime.includes('gif')) return 'image/gif';
+    if (mime.includes('webp')) return 'image/webp';
+    return 'image/jpeg';
+  }
 
+  private async markCompleteIfReady(ingestionJobId: string): Promise<void> {
     const assetsForJob = await this.prisma.sourceAsset.findMany({
       where: { ingestionJobId },
       select: { id: true },
@@ -155,6 +269,43 @@ export class IngestAssetProcessor {
         where: { id: ingestionJobId },
         data: { status: IngestionStatus.COMPLETE },
       });
+      this.logger.log(`Ingestion job=${ingestionJobId} marked COMPLETE`);
+
+      await this.autoGenerateListings(ingestionJobId);
+    }
+  }
+
+  private async autoGenerateListings(ingestionJobId: string): Promise<void> {
+    try {
+      const product = await this.prisma.product.findFirst({
+        where: { ingestionJobId },
+        select: { id: true, organizationId: true },
+      });
+      if (!product) return;
+
+      const allChannels: Channel[] = [
+        Channel.AMAZON,
+        Channel.EBAY,
+        Channel.WALMART,
+        Channel.SHOPIFY,
+        Channel.ETSY,
+      ];
+
+      this.logger.log(`Auto-generating channel listings for product=${product.id}`);
+      const results = await this.listingPackages.generatePackages(
+        product.organizationId,
+        product.id,
+        allChannels,
+      );
+      const fulfilled = results.filter(r => r.status === 'fulfilled').length;
+      const rejected = results.filter(r => r.status === 'rejected').length;
+      this.logger.log(
+        `Channel listing generation: ${fulfilled} succeeded, ${rejected} failed`,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Auto-generation of channel listings failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 }

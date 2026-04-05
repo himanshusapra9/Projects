@@ -6,7 +6,7 @@ import { BulkRelistService } from './bulk-relist.service';
 
 @ApiTags('Bulk Operations')
 @ApiBearerAuth()
-@Controller('api/v1/bulk')
+@Controller('bulk')
 export class BulkOpsController {
   constructor(
     private readonly bulkPublish: BulkPublishService,
@@ -17,15 +17,16 @@ export class BulkOpsController {
   async publish(
     @Body() body: { productIds: string[]; channels: string[] },
   ) {
-    const result = await this.bulkPublish.queueBulkPublish(
+    const data = await this.bulkPublish.queueBulkPublish(
       'org-placeholder', body.productIds, body.channels, 'user-placeholder',
     );
-    return result;
+    return { success: true, data };
   }
 
   @Post('relist')
   async relist(@Body() body: { productIds: string[] }) {
-    return this.bulkRelist.queueBulkRelist('org-placeholder', body.productIds, 'user-placeholder');
+    const data = await this.bulkRelist.queueBulkRelist('org-placeholder', body.productIds, 'user-placeholder');
+    return { success: true, data };
   }
 
   @Get(':operationId/status')

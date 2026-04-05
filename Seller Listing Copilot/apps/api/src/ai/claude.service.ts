@@ -1,7 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
 import {
   Injectable,
   InternalServerErrorException,
+  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -12,7 +13,8 @@ const SYSTEM_GUARDRAILS = `Never generate weight, dimensions, voltage, wattage, 
 
 @Injectable()
 export class ClaudeService {
-  private client: Anthropic | null = null;
+  private client: OpenAI | null = null;
+  private readonly logger = new Logger(ClaudeService.name);
 
   constructor(
     private readonly config: ConfigService,
@@ -27,13 +29,20 @@ export class ClaudeService {
     return ai;
   }
 
-  private ensureClient(): Anthropic {
+  private ensureClient(): OpenAI {
     const ai = this.getAi();
-    if (!ai.anthropicApiKey) {
-      throw new ServiceUnavailableException('Anthropic API key not configured');
+    if (!ai.apiKey) {
+      throw new ServiceUnavailableException('AI API key not configured');
     }
     if (!this.client) {
-      this.client = new Anthropic({ apiKey: ai.anthropicApiKey });
+      this.client = new OpenAI({
+        apiKey: ai.apiKey,
+        baseURL: ai.baseUrl,
+        defaultHeaders: {
+          'HTTP-Referer': 'https://listingpilot.ai',
+          'X-Title': 'ListingPilot AI',
+        },
+      });
     }
     return this.client;
   }
@@ -45,26 +54,34 @@ export class ClaudeService {
     maxTokens?: number;
   }): Promise<Record<string, unknown>> {
     const ai = this.getAi();
-    const model = ai.model;
     const maxRetries = ai.maxRetries;
     const client = this.ensureClient();
 
     let lastErr: unknown;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
-        const res = await client.messages.create({
-          model,
+        const res = await client.chat.completions.create({
+          model: ai.model,
           max_tokens: params.maxTokens ?? ai.maxTokens,
-          system: `${params.system}\n\n${SYSTEM_GUARDRAILS}`,
-          messages: [{ role: 'user', content: params.user }],
+          messages: [
+            { role: 'system', content: `${params.system}\n\n${SYSTEM_GUARDRAILS}` },
+            { role: 'user', content: params.user },
+          ],
         });
-        const text = this.extractText(res);
+        const text = res.choices?.[0]?.message?.content ?? '';
+        this.logger.debug(`completeJson response length: ${text.length}`);
         const usage = res.usage;
-        await this.trackUsage(params.organizationId, usage.input_tokens, usage.output_tokens);
-        const json = this.parseJsonBlock(text);
-        return json;
+        if (usage) {
+          await this.trackUsage(
+            params.organizationId,
+            usage.prompt_tokens ?? 0,
+            usage.completion_tokens ?? 0,
+          );
+        }
+        return this.parseJsonBlock(text);
       } catch (e: unknown) {
         lastErr = e;
+        this.logger.warn(`AI request attempt ${attempt + 1} failed: ${e instanceof Error ? e.message : String(e)}`);
         if (this.isRateLimit(e) && attempt < maxRetries - 1) {
           await this.delay(2 ** attempt * 500);
           continue;
@@ -76,7 +93,7 @@ export class ClaudeService {
       }
     }
     throw new ServiceUnavailableException(
-      lastErr instanceof Error ? lastErr.message : 'Anthropic request failed',
+      lastErr instanceof Error ? lastErr.message : 'AI request failed',
     );
   }
 
@@ -89,41 +106,56 @@ export class ClaudeService {
   }): Promise<Record<string, unknown>> {
     const ai = this.getAi();
     const client = this.ensureClient();
-    const res = await client.messages.create({
-      model: ai.model,
-      max_tokens: ai.maxTokens,
-      system: `${params.system}\n\n${SYSTEM_GUARDRAILS}`,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: {
-                type: 'base64',
-                media_type: params.mediaType,
-                data: params.imageBase64,
-              },
-            },
-            { type: 'text', text: params.user },
-          ],
-        },
-      ],
-    });
-    const text = this.extractText(res);
-    await this.trackUsage(
-      params.organizationId,
-      res.usage.input_tokens,
-      res.usage.output_tokens,
-    );
-    return this.parseJsonBlock(text);
-  }
+    const maxRetries = ai.maxRetries;
 
-  private extractText(
-    res: { content: Array<{ type: string; text?: string }> },
-  ): string {
-    const block = res.content.find((b) => b.type === 'text');
-    return block?.text ?? '';
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const dataUrl = `data:${params.mediaType};base64,${params.imageBase64}`;
+        const res = await client.chat.completions.create({
+          model: ai.model,
+          max_tokens: ai.maxTokens,
+          messages: [
+            { role: 'system', content: `${params.system}\n\n${SYSTEM_GUARDRAILS}` },
+            {
+              role: 'user',
+              content: [
+                {
+                  type: 'image_url',
+                  image_url: { url: dataUrl },
+                },
+                { type: 'text', text: params.user },
+              ],
+            },
+          ],
+        });
+        const text = res.choices?.[0]?.message?.content ?? '';
+        this.logger.debug(`visionJson response length: ${text.length}`);
+        const usage = res.usage;
+        if (usage) {
+          await this.trackUsage(
+            params.organizationId,
+            usage.prompt_tokens ?? 0,
+            usage.completion_tokens ?? 0,
+          );
+        }
+        return this.parseJsonBlock(text);
+      } catch (e: unknown) {
+        lastErr = e;
+        this.logger.warn(`Vision request attempt ${attempt + 1} failed: ${e instanceof Error ? e.message : String(e)}`);
+        if (this.isRateLimit(e) && attempt < maxRetries - 1) {
+          await this.delay(2 ** attempt * 500);
+          continue;
+        }
+        if (attempt < maxRetries - 1) {
+          await this.delay(2 ** attempt * 300);
+          continue;
+        }
+      }
+    }
+    throw new ServiceUnavailableException(
+      lastErr instanceof Error ? lastErr.message : 'Vision AI request failed',
+    );
   }
 
   private parseJsonBlock(text: string): Record<string, unknown> {
@@ -131,6 +163,7 @@ export class ClaudeService {
     const start = trimmed.indexOf('{');
     const end = trimmed.lastIndexOf('}');
     if (start === -1 || end === -1 || end <= start) {
+      this.logger.error(`Model did not return JSON. Raw response: ${trimmed.slice(0, 500)}`);
       throw new InternalServerErrorException('Model did not return JSON');
     }
     const slice = trimmed.slice(start, end + 1);
@@ -143,10 +176,12 @@ export class ClaudeService {
     outputTokens: number,
   ): Promise<void> {
     const total = inputTokens + outputTokens;
-    await this.prisma.organization.update({
-      where: { id: organizationId },
-      data: { monthlyTokenUsage: { increment: total } },
-    });
+    if (total > 0) {
+      await this.prisma.organization.update({
+        where: { id: organizationId },
+        data: { monthlyTokenUsage: { increment: total } },
+      });
+    }
   }
 
   private isRateLimit(err: unknown): boolean {

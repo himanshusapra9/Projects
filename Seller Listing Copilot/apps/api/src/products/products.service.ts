@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@/config/database.config';
+import { StorageService } from '@/storage/storage.service';
 import { CreateAttributeDto } from './dto/create-attribute.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -11,7 +12,10 @@ import { computeConfidence } from './confidence.scorer';
 
 @Injectable()
 export class ProductsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async list(organizationId: string, page = 1, limit = 20) {
     const where = { organizationId };
@@ -137,6 +141,54 @@ export class ProductsService {
   async listEvidence(organizationId: string, productId: string) {
     await this.ensureOrg(organizationId, productId);
     return this.prisma.evidence.findMany({ where: { productId } });
+  }
+
+  async updateAttribute(
+    organizationId: string,
+    productId: string,
+    attributeId: string,
+    data: { value?: string; normalizedValue?: string },
+  ) {
+    await this.ensureOrg(organizationId, productId);
+    const attr = await this.prisma.attribute.findFirst({
+      where: { id: attributeId, productId },
+    });
+    if (!attr) throw new NotFoundException('Attribute not found');
+    return this.prisma.attribute.update({
+      where: { id: attributeId },
+      data: {
+        ...(data.value !== undefined ? { value: data.value } : {}),
+        ...(data.normalizedValue !== undefined ? { normalizedValue: data.normalizedValue } : {}),
+      },
+    });
+  }
+
+  async getImages(organizationId: string, productId: string) {
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, organizationId },
+    });
+    if (!product) throw new NotFoundException('Product not found');
+
+    if (!product.ingestionJobId) return [];
+
+    const assets = await this.prisma.sourceAsset.findMany({
+      where: {
+        ingestionJobId: product.ingestionJobId,
+        type: 'IMAGE',
+      },
+    });
+
+    const results = [];
+    for (const asset of assets) {
+      const url = await this.storage.getPresignedGetUrl(asset.storageKey, 3600);
+      results.push({
+        id: asset.id,
+        filename: asset.originalFilename,
+        mimeType: asset.mimeType,
+        url,
+      });
+    }
+    return results;
   }
 
   private async ensureOrg(organizationId: string, productId: string): Promise<void> {

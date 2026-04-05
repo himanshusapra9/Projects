@@ -51,6 +51,13 @@ export class ProductsController {
     return { success: true, data };
   }
 
+  @Get(':id/images')
+  @ApiOperation({ summary: 'Get presigned image URLs for product source assets' })
+  async images(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    const data = await this.products.getImages(user.organizationId, id);
+    return { success: true, data };
+  }
+
   @Get(':id/attributes')
   @ApiOperation({ summary: 'List product attributes' })
   async attributes(@CurrentUser() user: RequestUser, @Param('id') id: string) {
@@ -66,6 +73,18 @@ export class ProductsController {
     @Body() dto: CreateAttributeDto,
   ) {
     const data = await this.products.addAttribute(user.organizationId, id, dto);
+    return { success: true, data };
+  }
+
+  @Patch(':id/attributes/:attrId')
+  @ApiOperation({ summary: 'Update attribute value' })
+  async patchAttribute(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Param('attrId') attrId: string,
+    @Body() body: { value?: string; normalizedValue?: string },
+  ) {
+    const data = await this.products.updateAttribute(user.organizationId, id, attrId, body);
     return { success: true, data };
   }
 

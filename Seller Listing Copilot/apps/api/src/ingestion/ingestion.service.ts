@@ -78,7 +78,27 @@ export class IngestionService {
   async getById(organizationId: string, id: string) {
     const job = await this.prisma.ingestionJob.findFirst({
       where: { id, organizationId },
-      include: { _count: { select: { assets: true } } },
+      include: {
+        _count: { select: { assets: true } },
+        products: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            reviewStatus: true,
+            completeness: true,
+          },
+        },
+        assets: {
+          select: {
+            id: true,
+            originalFilename: true,
+            mimeType: true,
+            type: true,
+            sizeBytes: true,
+          },
+        },
+      },
     });
     if (!job) throw new NotFoundException('Ingestion not found');
     return job;

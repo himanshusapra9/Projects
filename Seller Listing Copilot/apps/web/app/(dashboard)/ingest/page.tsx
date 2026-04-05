@@ -1,85 +1,200 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { DropZone } from "@/components/ingestion/DropZone";
 import { IngestionProgress } from "@/components/ingestion/IngestionProgress";
 import { IngestionSourceCard } from "@/components/ingestion/IngestionSourceCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { apiGet, apiPostMultipart } from "@/lib/api";
 
-type ChannelOpt = "AMAZON" | "EBAY" | "WALMART" | "SHOPIFY" | "ETSY";
+interface IngestionAsset {
+  id: string;
+  originalFilename: string;
+  mimeType: string | null;
+  type: string;
+  sizeBytes: number | null;
+}
 
-const channelOptions: { id: ChannelOpt; label: string }[] = [
-  { id: "AMAZON", label: "Amazon" },
-  { id: "EBAY", label: "eBay" },
-  { id: "WALMART", label: "Walmart" },
-  { id: "SHOPIFY", label: "Shopify" },
-  { id: "ETSY", label: "Etsy" },
-];
+interface IngestionProduct {
+  id: string;
+  title: string | null;
+  status: string;
+  reviewStatus: string;
+  completeness: number;
+}
 
-const recentJobs = [
-  {
-    id: "job-901",
-    source: "supplier_sheet.xlsx",
-    channels: "Amazon, eBay, Shopify",
-    started: "2026-03-31 14:18",
-    status: "Complete",
-  },
-  {
-    id: "job-900",
-    source: "https://vendor.example/p/88421",
-    channels: "All channels",
-    started: "2026-03-31 13:02",
-    status: "Complete",
-  },
-  {
-    id: "job-899",
-    source: "IMG_2044.jpg + packshot.pdf",
-    channels: "Amazon, Walmart",
-    started: "2026-03-31 11:41",
-    status: "Failed",
-  },
-  {
-    id: "job-898",
-    source: "upc:00876543210987",
-    channels: "eBay, Etsy",
-    started: "2026-03-30 22:15",
-    status: "Complete",
-  },
-];
+interface IngestionJob {
+  id: string;
+  status: string;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assets?: IngestionAsset[];
+  products?: IngestionProduct[];
+  _count?: { assets: number };
+}
+
+type IngestionStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "EXTRACTING"
+  | "BUILDING"
+  | "COMPLETE"
+  | "FAILED";
+
+function statusToStageIndex(status: IngestionStatus): number {
+  switch (status) {
+    case "PENDING":
+      return 0;
+    case "PROCESSING":
+      return 1;
+    case "EXTRACTING":
+      return 2;
+    case "BUILDING":
+      return 3;
+    case "COMPLETE":
+      return 4;
+    case "FAILED":
+      return -1;
+    default:
+      return 0;
+  }
+}
+
+function statusToProgress(status: IngestionStatus): number {
+  switch (status) {
+    case "PENDING":
+      return 10;
+    case "PROCESSING":
+      return 35;
+    case "EXTRACTING":
+      return 60;
+    case "BUILDING":
+      return 85;
+    case "COMPLETE":
+      return 100;
+    case "FAILED":
+      return 0;
+    default:
+      return 0;
+  }
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function IngestPage() {
-  const [url, setUrl] = useState("https://brand.example/products/sku-4421");
-  const [upc, setUpc] = useState("00842199310442");
-  const [selected, setSelected] = useState<Record<ChannelOpt, boolean>>({
-    AMAZON: true,
-    EBAY: true,
-    WALMART: false,
-    SHOPIFY: true,
-    ETSY: false,
-  });
-  const [activeJob, setActiveJob] = useState<{ stage: number; files: string[] } | null>(null);
+  const router = useRouter();
+  const [uploading, setUploading] = useState(false);
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [job, setJob] = useState<IngestionJob | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  function toggle(ch: ChannelOpt) {
-    setSelected((s) => ({ ...s, [ch]: !s[ch] }));
-  }
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
 
-  function onStart() {
-    setActiveJob({ stage: 2, files: ["upload-batch.zip", "attributes.csv"] });
-  }
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  const pollJob = useCallback(
+    (jobId: string) => {
+      stopPolling();
+      pollRef.current = setInterval(async () => {
+        try {
+          const data = await apiGet<IngestionJob>(`/ingestions/${jobId}`);
+          setJob(data);
+          if (data.status === "COMPLETE" || data.status === "FAILED") {
+            stopPolling();
+            if (data.status === "FAILED") {
+              setError(data.errorMessage ?? "Ingestion failed");
+            }
+          }
+        } catch {
+          stopPolling();
+          setError("Failed to check ingestion status");
+        }
+      }, 1500);
+    },
+    [stopPolling],
+  );
+
+  const handleFilesDropped = useCallback((files: File[]) => {
+    setStagedFiles((prev) => [...prev, ...files]);
+    setError(null);
+  }, []);
+
+  const removeFile = useCallback((index: number) => {
+    setStagedFiles((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const startIngestion = useCallback(async () => {
+    if (stagedFiles.length === 0) return;
+
+    setUploading(true);
+    setError(null);
+    setJob(null);
+
+    try {
+      const formData = new FormData();
+      for (const f of stagedFiles) {
+        formData.append("files", f);
+      }
+      const data = await apiPostMultipart<IngestionJob>(
+        "/ingestions",
+        formData,
+      );
+      setJob(data);
+      setUploading(false);
+      pollJob(data.id);
+    } catch (e: unknown) {
+      setUploading(false);
+      const msg =
+        e instanceof Error ? e.message : "Upload failed";
+      if (msg.includes("401") || msg.includes("Unauthorized")) {
+        setError("Not logged in. Please log in first, then try again.");
+      } else {
+        setError(msg);
+      }
+    }
+  }, [stagedFiles, pollJob]);
+
+  const resetAll = useCallback(() => {
+    stopPolling();
+    setJob(null);
+    setStagedFiles([]);
+    setError(null);
+    setUploading(false);
+  }, [stopPolling]);
+
+  const status = (job?.status ?? "PENDING") as IngestionStatus;
+  const stageIndex = uploading ? 0 : statusToStageIndex(status);
+  const isActive =
+    uploading || (job != null && status !== "COMPLETE" && status !== "FAILED");
+  const isComplete = job != null && status === "COMPLETE";
+  const isFailed = job != null && status === "FAILED";
+  const hasJobStarted = uploading || job != null;
 
   return (
     <motion.div
@@ -91,125 +206,235 @@ export default function IngestPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Ingest</h1>
         <p className="mt-1 text-sm text-foreground-muted">
-          Bring in files, URLs, or identifiers — we&apos;ll extract structured product truth.
+          Drop product photos — AI will extract structured attributes
+          automatically.
         </p>
       </div>
 
-      <Card className="border-border bg-surface">
-        <CardHeader>
-          <CardTitle className="text-base">New ingestion</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <DropZone
-            onFiles={(files) => {
-              setActiveJob({ stage: 1, files: files.map((f) => f.name) });
-            }}
-          />
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="url">Product URL</Label>
-              <Input
-                id="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://…"
-                className="bg-background/80 font-mono text-sm"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="upc">UPC / GTIN</Label>
-              <Input
-                id="upc"
-                value={upc}
-                onChange={(e) => setUpc(e.target.value)}
-                placeholder="12–14 digits"
-                className="bg-background/80 font-mono text-sm"
-              />
-            </div>
-          </div>
-          <div>
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
-              Generate packages for
-            </p>
-            <div className="flex flex-wrap gap-4">
-              {channelOptions.map((ch) => (
-                <label
-                  key={ch.id}
-                  className="flex cursor-pointer items-center gap-2 text-sm text-foreground"
-                >
-                  <Checkbox
-                    checked={selected[ch.id]}
-                    onCheckedChange={() => toggle(ch.id)}
-                  />
-                  {ch.label}
-                </label>
-              ))}
-            </div>
-          </div>
-          <Button type="button" size="lg" className="w-full sm:w-auto" onClick={onStart}>
-            Start ingestion
-          </Button>
-        </CardContent>
-      </Card>
+      {error && !hasJobStarted && (
+        <div className="flex items-start gap-2 rounded-lg border border-error/30 bg-error/10 p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+          <p className="text-sm text-error">{error}</p>
+        </div>
+      )}
 
-      {activeJob && (
+      {!hasJobStarted && (
         <Card className="border-border bg-surface">
           <CardHeader>
-            <CardTitle className="text-base">Active job</CardTitle>
-            <p className="text-xs text-foreground-muted">
-              {activeJob.files.join(" · ")}
-            </p>
+            <CardTitle className="text-base">New ingestion</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <IngestionProgress activeIndex={activeJob.stage} />
-            <div className="grid gap-3 sm:grid-cols-2">
-              {activeJob.files.map((f) => (
-                <IngestionSourceCard
-                  key={f}
-                  filename={f}
-                  mimeType="application/octet-stream"
-                  status="PROCESSING"
-                  progress={62}
-                />
-              ))}
-            </div>
+          <CardContent className="space-y-6">
+            <DropZone
+              onFiles={handleFilesDropped}
+              disabled={uploading}
+            />
+
+            {stagedFiles.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-foreground-muted">
+                  Files ready ({stagedFiles.length})
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {stagedFiles.map((f, i) => (
+                    <div
+                      key={`${f.name}-${i}`}
+                      className="flex items-center gap-3 rounded-lg border border-border bg-background/60 p-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-mono text-sm text-foreground">
+                          {f.name}
+                        </p>
+                        <p className="text-xs text-foreground-muted">
+                          {f.type || "unknown"} · {formatFileSize(f.size)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        className="shrink-0 rounded p-1 text-foreground-muted hover:bg-error/10 hover:text-error"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    size="lg"
+                    className="gap-2"
+                    onClick={startIngestion}
+                    disabled={uploading}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Start ingestion
+                  </Button>
+                  <Button
+                    type="button"
+                    size="lg"
+                    variant="outline"
+                    onClick={() => setStagedFiles([])}
+                  >
+                    Clear all
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
-      <div>
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-foreground-muted">
-          Recent ingestion jobs
-        </h2>
-        <div className="rounded-lg border border-border bg-surface">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Job</TableHead>
-                <TableHead>Source</TableHead>
-                <TableHead>Channels</TableHead>
-                <TableHead>Started</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentJobs.map((j) => (
-                <TableRow key={j.id}>
-                  <TableCell className="font-mono text-xs">{j.id}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{j.source}</TableCell>
-                  <TableCell className="text-foreground-muted">{j.channels}</TableCell>
-                  <TableCell className="text-foreground-muted">{j.started}</TableCell>
-                  <TableCell>
-                    <Badge variant={j.status === "Complete" ? "success" : "error"}>
-                      {j.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      {hasJobStarted && (
+        <Card className="border-border bg-surface">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">
+                {isComplete
+                  ? "Ingestion complete"
+                  : isFailed
+                    ? "Ingestion failed"
+                    : uploading
+                      ? "Uploading..."
+                      : "Processing..."}
+              </CardTitle>
+              {job && (
+                <Badge
+                  variant={
+                    isComplete
+                      ? "success"
+                      : isFailed
+                        ? "error"
+                        : "warning"
+                  }
+                >
+                  {job.status}
+                </Badge>
+              )}
+            </div>
+            {stagedFiles.length > 0 && (
+              <p className="text-xs text-foreground-muted">
+                {stagedFiles.map((f) => f.name).join(" · ")}
+              </p>
+            )}
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isFailed && (
+              <IngestionProgress activeIndex={stageIndex} />
+            )}
+
+            {error && (
+              <div className="flex items-start gap-2 rounded-lg border border-error/30 bg-error/10 p-3">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" />
+                <p className="text-sm text-error">{error}</p>
+              </div>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {(job?.assets ?? stagedFiles).map((item, i) => {
+                const isAsset = "originalFilename" in item;
+                const filename = isAsset
+                  ? (item as IngestionAsset).originalFilename
+                  : (item as File).name;
+                const mimeType = isAsset
+                  ? ((item as IngestionAsset).mimeType ??
+                    "application/octet-stream")
+                  : (item as File).type;
+
+                return (
+                  <IngestionSourceCard
+                    key={
+                      isAsset
+                        ? (item as IngestionAsset).id
+                        : `file-${i}`
+                    }
+                    filename={filename}
+                    mimeType={mimeType}
+                    status={
+                      uploading
+                        ? "UPLOADING"
+                        : (job?.status ?? "PENDING")
+                    }
+                    progress={
+                      uploading ? 30 : statusToProgress(status)
+                    }
+                  />
+                );
+              })}
+            </div>
+
+            {isActive && (
+              <div className="flex items-center justify-center gap-2 py-2 text-sm text-foreground-muted">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {uploading
+                  ? "Uploading files..."
+                  : status === "EXTRACTING"
+                    ? "AI is analyzing your images..."
+                    : "Processing..."}
+              </div>
+            )}
+
+            {isComplete &&
+              job?.products &&
+              job.products.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-foreground-muted">
+                    Extracted products
+                  </h3>
+                  {job.products.map((product) => (
+                    <div
+                      key={product.id}
+                      className="flex items-center justify-between rounded-lg border border-border bg-background/60 p-4"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+                          <span className="font-medium text-foreground">
+                            {product.title ?? "Untitled Product"}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs text-foreground-muted">
+                          Status: {product.status} · Review:{" "}
+                          {product.reviewStatus}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          router.push(`/products/${product.id}`)
+                        }
+                        className="gap-1"
+                      >
+                        View
+                        <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+            {(isComplete || isFailed) && (
+              <div className="flex gap-3 pt-2">
+                <Button variant="outline" onClick={resetAll}>
+                  Ingest another
+                </Button>
+                {isComplete && job?.products?.[0] && (
+                  <Button
+                    onClick={() =>
+                      router.push(
+                        `/products/${job.products![0].id}`,
+                      )
+                    }
+                    className="gap-1"
+                  >
+                    View product
+                    <ExternalLink className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </motion.div>
   );
 }

@@ -3,6 +3,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import redisConfig from '@/config/redis.config';
 import { DatabaseModule } from '@/config/database.module';
+import { AiModule } from '@/ai/ai.module';
 import { IngestionModule } from '@/ingestion/ingestion.module';
 import { ListingPackagesModule } from '@/listing-packages/listing-packages.module';
 import { MonitoringModule } from '@/monitoring/monitoring.module';
@@ -20,6 +21,7 @@ import { PublishListingProcessor } from './jobs/publish-listing.job';
     DatabaseModule,
     ConfigModule.forFeature(redisConfig),
     StorageModule,
+    AiModule,
     forwardRef(() => IngestionModule),
     ProductsModule,
     ListingPackagesModule,

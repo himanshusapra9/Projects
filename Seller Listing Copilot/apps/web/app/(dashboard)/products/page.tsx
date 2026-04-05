@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Loader2, Plus, Search } from "lucide-react";
+import type { PaginatedResponse } from "@listingpilot/shared-types";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,113 +24,44 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { apiGet } from "@/lib/api";
 
-type ProductStatus = "DRAFT" | "REVIEW_READY" | "APPROVED" | "PUBLISHED";
+type ProductStatus = "DRAFT" | "REVIEW_READY" | "APPROVED" | "PUBLISHED" | "ARCHIVED";
 
-interface ProductRow {
+interface ProductListItem {
   id: string;
-  title: string;
-  sku: string;
-  thumb: string;
+  title: string | null;
+  brand: string | null;
+  modelNumber: string | null;
+  upc: string | null;
+  ean: string | null;
+  asin: string | null;
   status: ProductStatus;
+  reviewStatus: string;
   completeness: number;
-  channels: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
-const MOCK_PRODUCTS: ProductRow[] = [
-  {
-    id: "prod-8842",
-    title: "AeroPress Clear Coffee Maker",
-    sku: "NW-2044 · UPC 085255118926",
-    thumb: "https://picsum.photos/seed/ap1/80/80",
-    status: "REVIEW_READY",
-    completeness: 88,
-    channels: ["Amazon", "Shopify"],
-  },
-  {
-    id: "prod-7721",
-    title: "Ceramic Pour-Over Set (Matte Black)",
-    sku: "NW-1192 · UPC 008421993104",
-    thumb: "https://picsum.photos/seed/po1/80/80",
-    status: "APPROVED",
-    completeness: 96,
-    channels: ["Amazon", "eBay", "Etsy"],
-  },
-  {
-    id: "prod-6610",
-    title: "Stainless Steel Milk Frother",
-    sku: "NW-3301",
-    thumb: "https://picsum.photos/seed/fr1/80/80",
-    status: "DRAFT",
-    completeness: 54,
-    channels: ["eBay"],
-  },
-  {
-    id: "prod-5509",
-    title: "Glass Storage Canisters — 3 Pack",
-    sku: "NW-4410 · GTIN 008421993118",
-    thumb: "https://picsum.photos/seed/gc1/80/80",
-    status: "REVIEW_READY",
-    completeness: 71,
-    channels: ["Walmart", "Amazon"],
-  },
-  {
-    id: "prod-4408",
-    title: "Bamboo Cutting Board — Large",
-    sku: "NW-2208",
-    thumb: "https://picsum.photos/seed/bb1/80/80",
-    status: "PUBLISHED",
-    completeness: 100,
-    channels: ["Etsy", "Shopify"],
-  },
-  {
-    id: "prod-3307",
-    title: "Copper French Press — 34oz",
-    sku: "NW-1188",
-    thumb: "https://picsum.photos/seed/fp1/80/80",
-    status: "REVIEW_READY",
-    completeness: 63,
-    channels: ["Amazon", "Walmart"],
-  },
-  {
-    id: "prod-2206",
-    title: "Digital Kitchen Scale — USB-C",
-    sku: "NW-5512",
-    thumb: "https://picsum.photos/seed/ks1/80/80",
-    status: "APPROVED",
-    completeness: 91,
-    channels: ["Shopify", "eBay"],
-  },
-  {
-    id: "prod-1105",
-    title: "Silicone Espresso Tamping Mat",
-    sku: "NW-0093",
-    thumb: "https://picsum.photos/seed/tm1/80/80",
-    status: "DRAFT",
-    completeness: 42,
-    channels: ["Amazon"],
-  },
-  {
-    id: "prod-0094",
-    title: "Vacuum-Insulated Travel Mug — 16oz",
-    sku: "NW-6620",
-    thumb: "https://picsum.photos/seed/mg1/80/80",
-    status: "REVIEW_READY",
-    completeness: 77,
-    channels: ["Amazon", "eBay", "Walmart"],
-  },
-  {
-    id: "prod-9983",
-    title: "Handcrafted Ceramic Mug — Speckle",
-    sku: "NW-7731",
-    thumb: "https://picsum.photos/seed/mg2/80/80",
-    status: "APPROVED",
-    completeness: 89,
-    channels: ["Etsy", "Shopify"],
-  },
-];
+function formatIdentifiers(p: ProductListItem): string {
+  const bits: string[] = [];
+  if (p.brand) bits.push(p.brand);
+  if (p.modelNumber) bits.push(`Model ${p.modelNumber}`);
+  if (p.upc) bits.push(`UPC ${p.upc}`);
+  if (p.ean) bits.push(`EAN ${p.ean}`);
+  if (p.asin) bits.push(`ASIN ${p.asin}`);
+  return bits.length ? bits.join(" · ") : "—";
+}
 
-function statusVariant(s: ProductStatus): "warning" | "success" | "outline" | "default" {
+function titleInitial(title: string | null): string {
+  const t = title?.trim();
+  if (!t) return "?";
+  return t[0]!.toUpperCase();
+}
+
+function statusVariant(
+  s: ProductStatus,
+): "warning" | "success" | "outline" | "default" {
   switch (s) {
     case "REVIEW_READY":
       return "warning";
@@ -138,32 +69,77 @@ function statusVariant(s: ProductStatus): "warning" | "success" | "outline" | "d
       return "success";
     case "PUBLISHED":
       return "default";
+    case "ARCHIVED":
+      return "outline";
     default:
       return "outline";
   }
 }
 
 const PAGE_SIZE = 5;
+const FETCH_PAGE_SIZE = 100;
 
 export default function ProductsPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [channelFilter, setChannelFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
+  const [products, setProducts] = useState<ProductListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAll() {
+      setLoading(true);
+      setError(null);
+      try {
+        let apiPage = 1;
+        let merged: ProductListItem[] = [];
+        let totalPages = 1;
+
+        do {
+          const res = await apiGet<PaginatedResponse<ProductListItem>>(
+            `/products?page=${apiPage}&limit=${FETCH_PAGE_SIZE}`,
+          );
+          if (cancelled) return;
+          merged = [...merged, ...res.data];
+          totalPages = res.totalPages;
+          apiPage += 1;
+        } while (apiPage <= totalPages);
+
+        if (!cancelled) setProducts(merged);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Failed to load products");
+          setProducts([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadAll();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const filtered = useMemo(() => {
-    return MOCK_PRODUCTS.filter((p) => {
+    const query = q.trim().toLowerCase();
+    return products.filter((p) => {
       const matchQ =
-        !q.trim() ||
-        p.title.toLowerCase().includes(q.toLowerCase()) ||
-        p.sku.toLowerCase().includes(q.toLowerCase());
+        !query ||
+        (p.title?.toLowerCase().includes(query) ?? false) ||
+        (p.brand?.toLowerCase().includes(query) ?? false) ||
+        (p.modelNumber?.toLowerCase().includes(query) ?? false) ||
+        (p.upc?.toLowerCase().includes(query) ?? false) ||
+        (p.ean?.toLowerCase().includes(query) ?? false) ||
+        (p.asin?.toLowerCase().includes(query) ?? false);
       const matchS = statusFilter === "all" || p.status === statusFilter;
-      const matchC =
-        channelFilter === "all" ||
-        p.channels.some((c) => c.toLowerCase() === channelFilter.toLowerCase());
-      return matchQ && matchS && matchC;
+      return matchQ && matchS;
     });
-  }, [q, statusFilter, channelFilter]);
+  }, [q, statusFilter, products]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -201,6 +177,7 @@ export default function ProductsPage() {
             }}
             placeholder="Search title, SKU, UPC…"
             className="bg-surface pl-9"
+            disabled={loading}
           />
         </div>
         <Select
@@ -209,6 +186,7 @@ export default function ProductsPage() {
             setStatusFilter(v);
             setPage(1);
           }}
+          disabled={loading}
         >
           <SelectTrigger className="w-full md:w-[180px] bg-surface">
             <SelectValue placeholder="Status" />
@@ -219,97 +197,103 @@ export default function ProductsPage() {
             <SelectItem value="REVIEW_READY">Review ready</SelectItem>
             <SelectItem value="APPROVED">Approved</SelectItem>
             <SelectItem value="PUBLISHED">Published</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select
-          value={channelFilter}
-          onValueChange={(v) => {
-            setChannelFilter(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-full md:w-[180px] bg-surface">
-            <SelectValue placeholder="Channel" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All channels</SelectItem>
-            <SelectItem value="amazon">Amazon</SelectItem>
-            <SelectItem value="ebay">eBay</SelectItem>
-            <SelectItem value="walmart">Walmart</SelectItem>
-            <SelectItem value="shopify">Shopify</SelectItem>
-            <SelectItem value="etsy">Etsy</SelectItem>
+            <SelectItem value="ARCHIVED">Archived</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
+      {error && (
+        <p className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
+
       <div className="rounded-lg border border-border bg-surface">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-[72px]" />
-              <TableHead>Title</TableHead>
-              <TableHead>SKU / UPC</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Completeness</TableHead>
-              <TableHead>Channels</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {pageItems.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>
-                  <div className="relative h-10 w-10 overflow-hidden rounded border border-border bg-background">
-                    <Image src={p.thumb} alt="" width={40} height={40} className="object-cover" unoptimized />
-                  </div>
-                </TableCell>
-                <TableCell className="max-w-[220px] font-medium">
-                  <Link href={`/products/${p.id}`} className="hover:text-accent hover:underline">
-                    {p.title}
-                  </Link>
-                </TableCell>
-                <TableCell className="font-mono text-xs text-foreground-muted">{p.sku}</TableCell>
-                <TableCell>
-                  <Badge variant={statusVariant(p.status)}>{p.status.replace("_", " ")}</Badge>
-                </TableCell>
-                <TableCell className="w-[140px]">
-                  <div className="mb-1 flex justify-between text-[10px] text-foreground-muted">
-                    <span>{p.completeness}%</span>
-                  </div>
-                  <Progress value={p.completeness} className="h-1.5" />
-                </TableCell>
-                <TableCell className="text-xs text-foreground-muted">
-                  {p.channels.join(", ")}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href={`/products/${p.id}`}>Open</Link>
-                  </Button>
-                </TableCell>
+        {loading ? (
+          <div className="flex min-h-[240px] flex-col items-center justify-center gap-3 py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-accent" aria-hidden />
+            <span className="text-sm text-foreground-muted">Loading products…</span>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[72px]" />
+                <TableHead>Title</TableHead>
+                <TableHead>SKU / UPC</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Completeness</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {pageItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-sm text-foreground-muted">
+                    No products match your filters.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                pageItems.map((p) => (
+                  <TableRow key={p.id}>
+                    <TableCell>
+                      <div className="flex h-10 w-10 items-center justify-center rounded border border-border bg-background text-sm font-semibold text-foreground-muted">
+                        {titleInitial(p.title)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-[220px] font-medium">
+                      <Link
+                        href={`/products/${p.id}`}
+                        className="hover:text-accent hover:underline"
+                      >
+                        {p.title ?? "Untitled"}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-foreground-muted">
+                      {formatIdentifiers(p)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant(p.status)}>
+                        {p.status.replace(/_/g, " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="w-[140px]">
+                      <div className="mb-1 flex justify-between text-[10px] text-foreground-muted">
+                        <span>{Math.round(p.completeness)}%</span>
+                      </div>
+                      <Progress value={p.completeness} className="h-1.5" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/products/${p.id}`}>Open</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        )}
       </div>
 
       <div className="flex items-center justify-between text-sm text-foreground-muted">
         <span>
-          Page {page} of {totalPages} · {filtered.length} products
+          Page {Math.min(page, totalPages)} of {totalPages} · {filtered.length} products
         </span>
         <div className="flex gap-2">
           <Button
             variant="outline"
             size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={loading || page <= 1}
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
             size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={loading || page >= totalPages}
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>

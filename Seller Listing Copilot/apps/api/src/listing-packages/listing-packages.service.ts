@@ -51,15 +51,48 @@ export class ListingPackagesService {
 
     const attrs: Record<string, unknown> = {};
     for (const a of product.attributes) {
+      if (a.fieldName.startsWith('ingestion.')) continue;
       attrs[a.fieldName] = a.normalizedValue ?? a.value;
     }
+
+    const str = (key: string): string | null => {
+      const v = attrs[key];
+      return typeof v === 'string' && v.trim() ? v.trim() : null;
+    };
+    const arr = (key: string): string[] => {
+      const v = attrs[key];
+      if (typeof v === 'string') return v.split(',').map(s => s.trim()).filter(Boolean);
+      return [];
+    };
+
+    const description = str('description');
+    const bullets: string[] = [];
+    const features = arr('notable_features');
+    if (features.length) bullets.push(...features.map(f => f));
+    const certs = arr('certifications');
+    if (certs.length) bullets.push(`Certifications: ${certs.join(', ')}`);
+    if (str('material')) bullets.push(`Material: ${str('material')}`);
+    if (str('color')) bullets.push(`Color: ${str('color')}`);
+    if (str('condition')) bullets.push(`Condition: ${str('condition')}`);
+    if (str('text_on_product')) bullets.push(`Product text: ${str('text_on_product')}`);
+
+    const keywords: string[] = [];
+    if (product.title) keywords.push(...product.title.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+    if (product.brand) keywords.push(product.brand.toLowerCase());
+    if (str('category')) keywords.push(str('category')!.toLowerCase());
+
+    const channelAttrs = { ...attrs };
+    for (const skip of ['description', 'notable_features', 'certifications', 'text_on_product']) {
+      delete channelAttrs[skip];
+    }
+
     return {
       title: product.title,
       brand: product.brand,
-      bullets: [],
-      description: null,
-      attributes: attrs,
-      keywords: [],
+      bullets,
+      description,
+      attributes: channelAttrs,
+      keywords: [...new Set(keywords)],
       images: [],
     };
   }

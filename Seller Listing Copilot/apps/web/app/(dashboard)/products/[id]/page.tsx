@@ -1,58 +1,225 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, Package } from "lucide-react";
-import { toast } from "sonner";
-import { AttributeRow } from "@/components/product/AttributeRow";
-import { ConflictResolver } from "@/components/product/ConflictResolver";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ExternalLink,
+  Loader2,
+  Package,
+  Pencil,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { apiGet, apiPost } from "@/lib/api";
+import { toast } from "sonner";
 
-type ProductHeaderMeta = {
-  title: string;
-  brand: string;
-  image: string;
+interface Product {
+  id: string;
+  title: string | null;
+  brand: string | null;
+  modelNumber: string | null;
+  upc: string | null;
+  ean: string | null;
+  asin: string | null;
   status: string;
+  reviewStatus: string;
   completeness: number;
-};
+  createdAt: string;
+}
 
-const FALLBACK_META: ProductHeaderMeta = {
-  title: "Catalog product",
-  brand: "Northwind",
-  image: "https://picsum.photos/seed/pd/120/120",
-  status: "REVIEW_READY",
-  completeness: 82,
-};
+interface Attribute {
+  id: string;
+  fieldName: string;
+  value: string;
+  normalizedValue: string | null;
+  confidence: number;
+  method: string;
+  requiresReview: boolean;
+  conflicted: boolean;
+}
 
-const productMeta: Record<string, ProductHeaderMeta> = {
-  "prod-8842": {
-    title: "AeroPress Clear Coffee Maker",
-    brand: "AeroPress",
-    image: "https://picsum.photos/seed/aphero/120/120",
-    status: "REVIEW_READY",
-    completeness: 88,
+interface Evidence {
+  id: string;
+  snippet: string | null;
+  explanation: string;
+  confidence: number;
+  sourceAssetId: string | null;
+  attributeId: string | null;
+}
+
+interface ListingPackage {
+  id: string;
+  channel: string;
+  status: string;
+  title: string | null;
+  qualityScore: number | null;
+}
+
+const ATTR_GROUPS: { label: string; icon: React.ReactNode; keys: string[] }[] = [
+  {
+    label: "Product Identity",
+    icon: <Tag className="h-4 w-4" />,
+    keys: ["title", "brand", "category", "model", "modelNumber"],
   },
+  {
+    label: "Physical Attributes",
+    icon: <Package className="h-4 w-4" />,
+    keys: ["color", "material", "condition", "weight", "dimensions"],
+  },
+  {
+    label: "Description & Features",
+    icon: <Sparkles className="h-4 w-4" />,
+    keys: ["description", "notable_features", "text_on_product"],
+  },
+  {
+    label: "Certifications & Compliance",
+    icon: <ShieldCheck className="h-4 w-4" />,
+    keys: ["certifications", "safety", "compliance", "voltage", "wattage"],
+  },
+];
+
+function confidenceColor(c: number): string {
+  if (c >= 0.8) return "text-green-400";
+  if (c >= 0.6) return "text-amber-400";
+  return "text-red-400";
+}
+
+function confidenceLabel(c: number): string {
+  if (c >= 0.8) return "High";
+  if (c >= 0.6) return "Medium";
+  return "Low";
+}
+
+function methodLabel(m: string): string {
+  switch (m) {
+    case "IMAGE_VISION":
+      return "AI Vision";
+    case "STRUCTURED_PARSE":
+      return "Structured Parse";
+    case "OCR":
+      return "OCR";
+    case "LLM_TEXT":
+      return "LLM Text";
+    default:
+      return m.replace(/_/g, " ");
+  }
+}
+
+const CHANNEL_LABEL: Record<string, string> = {
+  AMAZON: "Amazon",
+  EBAY: "eBay",
+  WALMART: "Walmart",
+  SHOPIFY: "Shopify",
+  ETSY: "Etsy",
 };
 
 export default function ProductTruthPage() {
   const params = useParams();
-  const id = typeof params.id === "string" ? params.id : "prod-8842";
-  const meta: ProductHeaderMeta = productMeta[id] ?? FALLBACK_META;
+  const id = typeof params.id === "string" ? params.id : "";
+
+  const [product, setProduct] = useState<Product | null>(null);
+  const [attributes, setAttributes] = useState<Attribute[]>([]);
+  const [evidences, setEvidences] = useState<Evidence[]>([]);
+  const [packages, setPackages] = useState<ListingPackage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+
+  const fetchData = useCallback(async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      const [prod, attrs, evs, pkgs] = await Promise.all([
+        apiGet<Product>(`/products/${id}`),
+        apiGet<Attribute[]>(`/products/${id}/attributes`),
+        apiGet<Evidence[]>(`/products/${id}/evidence`),
+        apiGet<ListingPackage[]>(`/listing-packages/product/${id}`).catch(
+          () => [] as ListingPackage[],
+        ),
+      ]);
+      setProduct(prod);
+      setAttributes(attrs);
+      setEvidences(evs);
+      setPackages(pkgs);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load product");
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleGenerateListings = async () => {
+    setGenerating(true);
+    try {
+      await apiPost("/listing-packages/generate", {
+        productId: id,
+        channels: ["AMAZON", "EBAY", "WALMART", "SHOPIFY", "ETSY"],
+      });
+      toast.success("Channel listings generated");
+      await fetchData();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="mx-auto max-w-2xl pt-16 text-center">
+        <p className="text-foreground-muted">{error ?? "Product not found"}</p>
+        <Button variant="outline" className="mt-4" asChild>
+          <Link href="/products">Back to products</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const displayAttrs = attributes.filter(
+    (a) => !a.fieldName.startsWith("ingestion."),
+  );
+
+  const groupedAttrs = ATTR_GROUPS.map((g) => ({
+    ...g,
+    attrs: displayAttrs.filter((a) =>
+      g.keys.some((k) => a.fieldName.toLowerCase().includes(k)),
+    ),
+  }));
+
+  const ungrouped = displayAttrs.filter(
+    (a) =>
+      !ATTR_GROUPS.some((g) =>
+        g.keys.some((k) => a.fieldName.toLowerCase().includes(k)),
+      ),
+  );
+
+  const completenessPercent =
+    product.completeness <= 1
+      ? Math.round(product.completeness * 100)
+      : Math.round(product.completeness);
 
   return (
     <motion.div
@@ -61,396 +228,258 @@ export default function ProductTruthPage() {
       transition={{ duration: 0.25 }}
       className="mx-auto max-w-5xl space-y-6"
     >
-      <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-4 md:flex-row md:items-center">
-        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-background">
-          <Image src={meta.image} alt="" width={96} height={96} className="object-cover" unoptimized />
-        </div>
+      <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 md:flex-row md:items-start">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight">{meta.title}</h1>
-            <Badge variant="warning">{meta.status.replace("_", " ")}</Badge>
+            <h1 className="text-xl font-semibold tracking-tight">
+              {product.title ?? "Untitled Product"}
+            </h1>
+            <Badge
+              variant={
+                product.status === "PUBLISHED" || product.status === "APPROVED"
+                  ? "success"
+                  : product.status === "REVIEW_READY"
+                    ? "warning"
+                    : "outline"
+              }
+            >
+              {product.status.replace(/_/g, " ")}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              {product.reviewStatus.replace(/_/g, " ")}
+            </Badge>
           </div>
-          <p className="mt-1 text-sm text-foreground-muted">Brand · {meta.brand}</p>
+
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-foreground-muted">
+            {product.brand && <span>Brand: {product.brand}</span>}
+            {product.upc && (
+              <span className="font-mono text-xs">UPC: {product.upc}</span>
+            )}
+            {product.ean && (
+              <span className="font-mono text-xs">EAN: {product.ean}</span>
+            )}
+            {product.asin && (
+              <span className="font-mono text-xs">ASIN: {product.asin}</span>
+            )}
+            {product.modelNumber && (
+              <span className="font-mono text-xs">
+                Model: {product.modelNumber}
+              </span>
+            )}
+          </div>
+
           <div className="mt-3 max-w-sm">
             <div className="mb-1 flex justify-between text-xs text-foreground-muted">
               <span>Completeness</span>
-              <span>{meta.completeness}%</span>
+              <span>{completenessPercent}%</span>
             </div>
-            <Progress value={meta.completeness} className="h-2" />
+            <Progress value={completenessPercent} className="h-2" />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-foreground-muted">
+            <span>{displayAttrs.length} attributes extracted</span>
+            <span>{evidences.length} evidence records</span>
+            <span>{packages.length} channel listings</span>
           </div>
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col">
-          <Button
-            variant="secondary"
-            onClick={() => toast.success("Approved high-confidence fields (demo)")}
-          >
-            Approve all high-confidence
+          <Button asChild className="gap-2">
+            <Link href={`/products/${id}/review`}>
+              <Pencil className="h-4 w-4" />
+              Review Completed Listing
+            </Link>
           </Button>
-          <Button asChild>
-            <Link href={`/products/${id}/channels`} className="gap-2">
-              Generate channel packages
-              <ArrowRight className="h-4 w-4" />
+          {packages.length === 0 ? (
+            <Button
+              variant="secondary"
+              onClick={() => void handleGenerateListings()}
+              disabled={generating}
+              className="gap-2"
+            >
+              {generating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {generating ? "Generating..." : "Generate Channel Listings"}
+            </Button>
+          ) : (
+            <Button variant="secondary" asChild>
+              <Link href={`/products/${id}/channels`} className="gap-2">
+                View Channel Packages
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <Link href={`/products/${id}/publish`} className="gap-2">
+              <ExternalLink className="h-4 w-4" />
+              Publish Center
             </Link>
           </Button>
         </div>
       </div>
 
+      {packages.length > 0 && (
+        <Card className="border-border bg-surface">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Channel Listings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {packages.map((pkg) => (
+                <Link
+                  key={pkg.id}
+                  href={`/products/${id}/channels`}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-background/40 p-3 transition-colors hover:bg-background/80"
+                >
+                  <CheckCircle2
+                    className={`h-4 w-4 shrink-0 ${
+                      pkg.status === "VALIDATED"
+                        ? "text-green-400"
+                        : pkg.status === "FAILED"
+                          ? "text-red-400"
+                          : "text-amber-400"
+                    }`}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">
+                      {CHANNEL_LABEL[pkg.channel] ?? pkg.channel}
+                    </p>
+                    <p className="truncate text-xs text-foreground-muted">
+                      {pkg.title ?? "—"}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-foreground-muted">
+                    {pkg.qualityScore != null
+                      ? `${Math.round((pkg.qualityScore <= 1 ? pkg.qualityScore * 100 : pkg.qualityScore))}%`
+                      : "—"}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="attributes" className="space-y-4">
         <TabsList className="bg-surface">
-          <TabsTrigger value="attributes">Attributes</TabsTrigger>
-          <TabsTrigger value="evidence">Evidence</TabsTrigger>
-          <TabsTrigger value="variants">Variants</TabsTrigger>
+          <TabsTrigger value="attributes">
+            Attributes ({displayAttrs.length})
+          </TabsTrigger>
+          <TabsTrigger value="evidence">
+            Evidence ({evidences.length})
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="attributes" className="space-y-4">
-          <ScrollArea className="max-h-[720px] pr-2">
-            <div className="space-y-3">
-              <AttributeRow
-                fieldName="Title"
-                value={meta.title}
-                confidence={0.95}
-                method="LLM_INFERENCE"
-                requiresReview={false}
-                evidences={[
-                  {
-                    id: "e-title-1",
-                    snippet: meta.title,
-                    explanation: "Consensus from HERO image OCR and supplier title row.",
-                    confidence: 0.95,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="Brand"
-                value={meta.brand}
-                confidence={0.92}
-                method="STRUCTURED_PARSE"
-                requiresReview={false}
-                evidences={[
-                  {
-                    id: "e-brand-1",
-                    snippet: meta.brand,
-                    explanation: "Parsed from structured vendor feed column brand_name.",
-                    confidence: 0.92,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="Color"
-                value="Clear / Smoke Gray"
-                confidence={0.78}
-                method="IMAGE_VISION"
-                requiresReview
-                evidences={[
-                  {
-                    id: "e-col-1",
-                    snippet: "Translucent gray tint on chamber",
-                    explanation: "Vision model on packshot IMG_2044.jpg",
-                    confidence: 0.81,
-                  },
-                  {
-                    id: "e-col-2",
-                    snippet: "Color: Slate",
-                    explanation: "Supplier CSV row 12",
-                    confidence: 0.64,
-                  },
-                ]}
-                onApprove={() => toast.success("Color approved")}
-                onOverride={() => undefined}
-              />
-              <ConflictResolver
-                fieldName="Weight"
-                candidates={[
-                  {
-                    id: "c1",
-                    value: "6.4 oz",
-                    sourceLabel: "Supplier PDF — shipping table",
-                    confidence: 0.62,
-                    evidences: [
-                      {
-                        id: "w1",
-                        snippet: "Unit weight 6.4 oz",
-                        explanation: "Extracted from PDF page 3 table.",
-                        confidence: 0.62,
-                      },
-                    ],
-                  },
-                  {
-                    id: "c2",
-                    value: "7.1 oz",
-                    sourceLabel: "Amazon prior listing scrape",
-                    confidence: 0.58,
-                    evidences: [
-                      {
-                        id: "w2",
-                        snippet: "Item weight 7.1 ounces",
-                        explanation: "Cached listing snapshot from URL_SCRAPE.",
-                        confidence: 0.58,
-                      },
-                    ],
-                  },
-                ]}
-                onResolve={() => toast.success("Conflict resolved (demo)")}
-              />
-              <AttributeRow
-                fieldName="Material"
-                value="Tritan copolyester, silicone seal"
-                confidence={0.82}
-                method="URL_SCRAPE"
-                requiresReview
-                evidences={[
-                  {
-                    id: "e-mat-1",
-                    snippet: "BPA-free Tritan plastic",
-                    explanation: "Product page materials section.",
-                    confidence: 0.82,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="Condition"
-                value="New"
-                confidence={0.99}
-                method="SELLER_CONFIRMED"
-                requiresReview={false}
-                evidences={[
-                  {
-                    id: "e-cond-1",
-                    snippet: "New",
-                    explanation: "Seller confirmed default for FBA inbound.",
-                    confidence: 0.99,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="UPC"
-                value="085255118926"
-                confidence={0.95}
-                method="STRUCTURED_PARSE"
-                requiresReview={false}
-                evidences={[
-                  {
-                    id: "e-upc-1",
-                    snippet: "085255118926",
-                    explanation: "Normalized from CSV GTIN column.",
-                    confidence: 0.95,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="Dimensions"
-                value='3.1" × 3.1" × 5.2"'
-                confidence={0.38}
-                method="LLM_INFERENCE"
-                requiresReview
-                evidences={[
-                  {
-                    id: "e-dim-1",
-                    snippet: null,
-                    explanation: "Inferred from packaging image only — no ruler reference.",
-                    confidence: 0.38,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="Category"
-                value={"Kitchen & Dining › Coffee Makers › Manual"}
-                confidence={0.88}
-                method="LLM_INFERENCE"
-                requiresReview={false}
-                evidences={[
-                  {
-                    id: "e-cat-1",
-                    snippet: "Pour-over and press",
-                    explanation: "Mapped to Amazon browse taxonomy via title + bullets.",
-                    confidence: 0.88,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="MPN"
-                value="AP-CLR-01"
-                confidence={0.9}
-                method="STRUCTURED_PARSE"
-                requiresReview={false}
-                evidences={[
-                  {
-                    id: "e-mpn-1",
-                    snippet: "AP-CLR-01",
-                    explanation: "Manufacturer part number from vendor XLSX.",
-                    confidence: 0.9,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="Capacity"
-                value={"10 fl oz brewed (approx.)"}
-                confidence={0.72}
-                method="IMAGE_VISION"
-                requiresReview
-                evidences={[
-                  {
-                    id: "e-cap-1",
-                    snippet: "Numbers on chamber marking",
-                    explanation: "Read from graduated markings on side of chamber.",
-                    confidence: 0.72,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="Country of origin"
-                value="USA"
-                confidence={0.86}
-                method="OCR"
-                requiresReview={false}
-                evidences={[
-                  {
-                    id: "e-coo-1",
-                    snippet: "Made in USA",
-                    explanation: "OCR on packaging insert photo.",
-                    confidence: 0.86,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="Warranty"
-                value={"1 year limited manufacturer warranty"}
-                confidence={0.79}
-                method="URL_SCRAPE"
-                requiresReview
-                evidences={[
-                  {
-                    id: "e-war-1",
-                    snippet: "One year from purchase date",
-                    explanation: "Support page warranty paragraph.",
-                    confidence: 0.79,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-              <AttributeRow
-                fieldName="Included components"
-                value="Plunger, filter cap, stirrer, funnel, 350 filters"
-                confidence={0.84}
-                method="LLM_INFERENCE"
-                requiresReview={false}
-                evidences={[
-                  {
-                    id: "e-inc-1",
-                    snippet: "350 microfilters included",
-                    explanation: "Summarized from marketing PDF and hero image.",
-                    confidence: 0.84,
-                  },
-                ]}
-                onApprove={() => undefined}
-                onOverride={() => undefined}
-              />
-            </div>
-          </ScrollArea>
+        <TabsContent value="attributes" className="space-y-6">
+          {displayAttrs.length === 0 ? (
+            <p className="py-8 text-center text-sm text-foreground-muted">
+              No attributes extracted yet.
+            </p>
+          ) : (
+            <>
+              {groupedAttrs
+                .filter((g) => g.attrs.length > 0)
+                .map((group) => (
+                  <Card key={group.label} className="border-border bg-surface">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-2 text-sm">
+                        {group.icon}
+                        {group.label}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {group.attrs.map((attr) => (
+                          <AttrCard key={attr.id} attr={attr} />
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+              {ungrouped.length > 0 && (
+                <Card className="border-border bg-surface">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm">Other Attributes</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {ungrouped.map((attr) => (
+                        <AttrCard key={attr.id} attr={attr} />
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </>
+          )}
         </TabsContent>
 
         <TabsContent value="evidence" className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              {
-                id: "asset-1",
-                label: "IMG_2044.jpg — Hero packshot",
-                kind: "Image",
-                notes: "Primary label legibility high; color temperature neutral.",
-              },
-              {
-                id: "asset-2",
-                label: "supplier_sheet.xlsx",
-                kind: "Spreadsheet",
-                notes: "Rows 10–40 contain GTIN, case pack, harmonized code.",
-              },
-              {
-                id: "asset-3",
-                label: "insert_scan.pdf — Page 2",
-                kind: "PDF / OCR",
-                notes: "Warranty and material callouts; OCR confidence 0.91 avg.",
-              },
-              {
-                id: "asset-4",
-                label: "https://brand.example/p/aeropress-clear",
-                kind: "URL scrape",
-                notes: "Bullets and description captured; schema.org Product parsed.",
-              },
-            ].map((a) => (
-              <Card key={a.id} className="border-border bg-surface">
+          {evidences.length === 0 ? (
+            <p className="py-8 text-center text-sm text-foreground-muted">
+              No evidence records yet.
+            </p>
+          ) : (
+            evidences.map((ev) => (
+              <Card key={ev.id} className="border-border bg-surface">
                 <CardHeader className="pb-2">
-                  <div className="flex items-center gap-2 text-accent">
-                    <Package className="h-4 w-4" />
-                    <span className="text-xs font-semibold uppercase tracking-wide">{a.kind}</span>
-                  </div>
-                  <CardTitle className="text-base leading-snug">{a.label}</CardTitle>
+                  <CardTitle className="text-sm leading-snug">
+                    {ev.explanation}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-foreground-muted">{a.notes}</p>
+                  {ev.snippet && (
+                    <pre className="max-h-40 overflow-auto rounded bg-background/60 p-2 font-mono text-xs text-foreground-muted">
+                      {ev.snippet.length > 500
+                        ? `${ev.snippet.slice(0, 500)}…`
+                        : ev.snippet}
+                    </pre>
+                  )}
+                  <div className="mt-2 flex items-center gap-2">
+                    <Badge variant="outline">
+                      Confidence: {(ev.confidence * 100).toFixed(0)}%
+                    </Badge>
+                  </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="variants">
-          <div className="rounded-lg border border-border bg-surface">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Label</TableHead>
-                  <TableHead>Attributes</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow>
-                  <TableCell className="font-mono text-xs">NW-2044-CLR</TableCell>
-                  <TableCell>Clear — standard</TableCell>
-                  <TableCell className="text-xs text-foreground-muted">
-                    Color=Clear · Pack=Standard
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-mono text-xs">NW-2044-CLR-350</TableCell>
-                  <TableCell>Clear + extra filters</TableCell>
-                  <TableCell className="text-xs text-foreground-muted">
-                    Color=Clear · Pack=Filter bundle
-                  </TableCell>
-                </TableRow>
-                <TableRow>
-                  <TableCell className="font-mono text-xs">NW-2044-ORG</TableCell>
-                  <TableCell>Orange cap (limited)</TableCell>
-                  <TableCell className="text-xs text-foreground-muted">
-                    Color=Orange · Pack=Limited
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+            ))
+          )}
         </TabsContent>
       </Tabs>
     </motion.div>
+  );
+}
+
+function AttrCard({ attr }: { attr: Attribute }) {
+  return (
+    <div className="rounded-lg border border-border bg-background/40 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+          {attr.fieldName.replace(/_/g, " ")}
+        </span>
+        <div className="flex items-center gap-1.5">
+          {attr.requiresReview && (
+            <Badge variant="warning" className="text-[10px]">
+              Review
+            </Badge>
+          )}
+          <span
+            className={`text-[10px] font-medium ${confidenceColor(attr.confidence)}`}
+          >
+            {confidenceLabel(attr.confidence)} (
+            {(attr.confidence * 100).toFixed(0)}%)
+          </span>
+        </div>
+      </div>
+      <p className="mt-1.5 text-sm text-foreground">
+        {attr.value || "—"}
+      </p>
+      <p className="mt-1 text-[10px] text-foreground-muted">
+        via {methodLabel(attr.method)}
+      </p>
+    </div>
   );
 }

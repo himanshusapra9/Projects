@@ -1,83 +1,128 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { HealthScoreCard } from "@/components/monitoring/HealthScoreCard";
-import { RemediationCard } from "@/components/monitoring/RemediationCard";
-import { SuppressionAlert } from "@/components/monitoring/SuppressionAlert";
+import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { apiGet } from "@/lib/api";
 
-const suppressions = [
-  {
-    id: "s1",
-    title: "Listing suppressed — policy: restricted claims",
-    channelLabel: "Amazon",
-    reason:
-      "Automated scan flagged 'medical benefit' language in bullet 3. Listing removed from search until resolved.",
-    urgency: "high" as const,
-  },
-  {
-    id: "s2",
-    title: "Buy box lost — price parity drift",
-    channelLabel: "Walmart",
-    reason: "MAP enforcement detected 6% under authorized floor vs. last sync.",
-    urgency: "medium" as const,
-  },
-];
+type Monitor = {
+  id: string;
+  productId: string;
+  channel: string;
+  channelListingId: string;
+  status: string;
+  healthScore: number;
+  lastCheckedAt: string;
+  createdAt: string;
+};
 
-const alerts = [
-  {
-    id: "a1",
-    severity: "critical",
-    channel: "Amazon",
-    title: "Search suppression risk",
-    body: "Browse node mismatch vs. competitor set — conversion down 18% WoW.",
-  },
-  {
-    id: "a2",
-    severity: "warning",
-    channel: "eBay",
-    title: "Item specifics incomplete",
-    body: "Required field 'Type' missing for category 20696.",
-  },
-  {
-    id: "a3",
-    severity: "warning",
-    channel: "Shopify",
-    title: "Structured data warning",
-    body: "Product JSON-LD missing offers.priceValidUntil.",
-  },
-];
+type Remediation = {
+  id: string;
+  monitorId: string;
+  type: string;
+  severity: string;
+  description: string;
+  suggestedAction: string;
+  status: string;
+  createdAt: string;
+};
 
-const remediations = [
-  {
-    id: "r1",
-    title: "Replace restricted phrasing in bullets",
-    description:
-      "Swap wellness claims for functional descriptors. Template LP-BULLET-SAFE-01 matches your category.",
-    type: "CONTENT_DRIFT" as const,
-    impactScore: 0.92,
-  },
-  {
-    id: "r2",
-    title: "Align Walmart short description length",
-    description:
-      "Expand generated short description to 640 characters with feature-led sentences.",
-    type: "MISSING_REQUIRED" as const,
-    impactScore: 0.78,
-  },
-  {
-    id: "r3",
-    title: "Refresh main image — aspect ratio",
-    description:
-      "Amazon detail page prefers 1:1 main image min 1000px. Crop packshot to safe frame.",
-    type: "DISCOVERABILITY" as const,
-    impactScore: 0.65,
-  },
-];
+function formatDate(iso: string): string {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+/** Normalize to 0–1 for averaging when API uses either fraction or 0–100. */
+function normalizeHealthFraction(score: number): number {
+  if (!Number.isFinite(score)) return 0;
+  if (score >= 0 && score <= 1) return score;
+  if (score > 1 && score <= 100) return score / 100;
+  return Math.min(1, Math.max(0, score / 100));
+}
+
+function formatHealthScore(score: number): string {
+  if (Number.isNaN(score)) return "—";
+  if (score >= 0 && score <= 1) {
+    return `${Math.round(score * 100)}%`;
+  }
+  return `${Math.round(score)}%`;
+}
+
+function severityBadgeVariant(
+  severity: string,
+): "error" | "warning" | "default" | "outline" {
+  const s = severity.toLowerCase();
+  if (s === "critical" || s === "high" || s === "error") return "error";
+  if (s === "warning" || s === "medium") return "warning";
+  if (s === "low" || s === "info") return "default";
+  return "outline";
+}
+
+function monitorStatusBadgeVariant(
+  status: string,
+): "success" | "warning" | "error" | "outline" {
+  const u = status.toUpperCase();
+  if (u.includes("OK") || u === "HEALTHY" || u === "ACTIVE") return "success";
+  if (u.includes("WARN") || u === "DEGRADED") return "warning";
+  if (u.includes("FAIL") || u.includes("ERROR") || u === "DOWN") return "error";
+  return "outline";
+}
 
 export default function MonitoringPage() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [monitors, setMonitors] = useState<Monitor[]>([]);
+  const [remediations, setRemediations] = useState<Remediation[]>([]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [monitorsRes, remediationsRes] = await Promise.all([
+        apiGet<Monitor[]>("/monitors"),
+        apiGet<Remediation[]>("/remediations"),
+      ]);
+      setMonitors(monitorsRes);
+      setRemediations(remediationsRes);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load monitoring data");
+      setMonitors([]);
+      setRemediations([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const summary = useMemo(() => {
+    const n = monitors.length;
+    const avgHealth =
+      n > 0
+        ? monitors.reduce((acc, m) => acc + normalizeHealthFraction(m.healthScore), 0) / n
+        : null;
+    const highSeverityRemediations = remediations.filter((r) => {
+      const s = r.severity.toLowerCase();
+      return s === "critical" || s === "high";
+    }).length;
+    return {
+      monitorCount: n,
+      remediationCount: remediations.length,
+      avgHealth,
+      highSeverityRemediations,
+    };
+  }, [monitors, remediations]);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -86,154 +131,159 @@ export default function MonitoringPage() {
       className="mx-auto max-w-7xl space-y-8"
     >
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Monitoring</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Monitoring
+        </h1>
         <p className="mt-1 text-sm text-foreground-muted">
-          Live listing health, suppressions, and ranked remediation paths.
+          Live listing health and remediation recommendations from your monitors.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: "Active monitors", value: "23" },
-          { label: "Alerts", value: "7" },
-          { label: "Suppressed", value: "2" },
-          { label: "Health score avg", value: "87%" },
-        ].map((s) => (
-          <Card key={s.label} className="border-border bg-surface">
-            <CardHeader className="pb-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
-                {s.label}
-              </span>
-            </CardHeader>
-            <CardContent>
-              <p className="font-mono text-2xl font-semibold text-accent">{s.value}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="space-y-3">
-        {suppressions.map((s) => (
-          <SuppressionAlert
-            key={s.id}
-            title={s.title}
-            channelLabel={s.channelLabel}
-            reason={s.reason}
-            urgency={s.urgency}
-            onViewListing={() => undefined}
-          />
-        ))}
-      </div>
-
-      <Tabs defaultValue="alerts" className="space-y-4">
-        <TabsList className="bg-surface">
-          <TabsTrigger value="alerts">Active alerts</TabsTrigger>
-          <TabsTrigger value="remediations">Remediations</TabsTrigger>
-          <TabsTrigger value="health">Health overview</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="alerts" className="space-y-3">
-          {alerts.map((a) => (
-            <Card key={a.id} className="border-border bg-surface">
-              <CardHeader className="flex flex-row flex-wrap items-center gap-2 space-y-0">
-                <Badge variant={a.severity === "critical" ? "error" : "warning"}>
-                  {a.severity}
-                </Badge>
-                <Badge variant="outline">{a.channel}</Badge>
-                <CardTitle className="text-base">{a.title}</CardTitle>
+      {loading ? (
+        <div
+          className="flex min-h-[240px] flex-col items-center justify-center gap-3 rounded-lg border border-border bg-surface py-16"
+          role="status"
+          aria-live="polite"
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-accent" aria-hidden />
+          <p className="text-sm text-foreground-muted">Loading monitoring data…</p>
+        </div>
+      ) : error ? (
+        <div className="rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
+          {error}
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-border bg-surface">
+              <CardHeader className="pb-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                  Active monitors
+                </span>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-foreground-muted">{a.body}</p>
+                <p className="font-mono text-2xl font-semibold text-accent tabular-nums">
+                  {summary.monitorCount}
+                </p>
               </CardContent>
             </Card>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="remediations" className="space-y-4">
-          {remediations.map((r) => (
-            <RemediationCard
-              key={r.id}
-              title={r.title}
-              description={r.description}
-              type={r.type}
-              impactScore={r.impactScore}
-              onApply={() => undefined}
-              onDismiss={() => undefined}
-            />
-          ))}
-        </TabsContent>
-
-        <TabsContent value="health">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {(
-              [
-                {
-                  channel: "AMAZON" as const,
-                  score: 0.91,
-                  dimensions: [
-                    { label: "Visibility", value: 88 },
-                    { label: "Content", value: 92 },
-                    { label: "Policy", value: 90 },
-                    { label: "Conversion", value: 85 },
-                    { label: "Ops", value: 94 },
-                  ],
-                },
-                {
-                  channel: "EBAY" as const,
-                  score: 0.85,
-                  dimensions: [
-                    { label: "Visibility", value: 82 },
-                    { label: "Content", value: 86 },
-                    { label: "Policy", value: 88 },
-                    { label: "Conversion", value: 80 },
-                    { label: "Ops", value: 87 },
-                  ],
-                },
-                {
-                  channel: "WALMART" as const,
-                  score: 0.72,
-                  dimensions: [
-                    { label: "Visibility", value: 70 },
-                    { label: "Content", value: 74 },
-                    { label: "Policy", value: 78 },
-                    { label: "Conversion", value: 68 },
-                    { label: "Ops", value: 71 },
-                  ],
-                },
-                {
-                  channel: "SHOPIFY" as const,
-                  score: 0.88,
-                  dimensions: [
-                    { label: "Visibility", value: 90 },
-                    { label: "Content", value: 87 },
-                    { label: "Policy", value: 92 },
-                    { label: "Conversion", value: 84 },
-                    { label: "Ops", value: 89 },
-                  ],
-                },
-                {
-                  channel: "ETSY" as const,
-                  score: 0.8,
-                  dimensions: [
-                    { label: "Visibility", value: 78 },
-                    { label: "Content", value: 84 },
-                    { label: "Policy", value: 86 },
-                    { label: "Conversion", value: 79 },
-                    { label: "Ops", value: 81 },
-                  ],
-                },
-              ] as const
-            ).map((h) => (
-              <HealthScoreCard
-                key={h.channel}
-                channel={h.channel}
-                score={h.score}
-                dimensions={[...h.dimensions]}
-              />
-            ))}
+            <Card className="border-border bg-surface">
+              <CardHeader className="pb-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                  Remediations
+                </span>
+              </CardHeader>
+              <CardContent>
+                <p className="font-mono text-2xl font-semibold text-accent tabular-nums">
+                  {summary.remediationCount}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-surface">
+              <CardHeader className="pb-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                  High / critical
+                </span>
+              </CardHeader>
+              <CardContent>
+                <p className="font-mono text-2xl font-semibold text-accent tabular-nums">
+                  {summary.highSeverityRemediations}
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-border bg-surface">
+              <CardHeader className="pb-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                  Health score avg
+                </span>
+              </CardHeader>
+              <CardContent>
+                <p className="font-mono text-2xl font-semibold text-accent tabular-nums">
+                  {summary.avgHealth != null ? formatHealthScore(summary.avgHealth) : "—"}
+                </p>
+              </CardContent>
+            </Card>
           </div>
-        </TabsContent>
-      </Tabs>
+
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+              Monitors
+            </h2>
+            {monitors.length === 0 ? (
+              <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-foreground-muted">
+                No monitors yet.
+              </p>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {monitors.map((m) => (
+                  <Card
+                    key={m.id}
+                    className="border-border bg-surface transition-shadow hover:shadow-md"
+                  >
+                    <CardHeader className="space-y-2 pb-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline">{m.channel}</Badge>
+                        <Badge variant={monitorStatusBadgeVariant(m.status)}>
+                          {m.status.replaceAll("_", " ")}
+                        </Badge>
+                      </div>
+                      <CardTitle className="text-base font-medium text-foreground">
+                        Health {formatHealthScore(m.healthScore)}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm text-foreground-muted">
+                      <p>
+                        <span className="text-foreground-muted">Last checked: </span>
+                        {formatDate(m.lastCheckedAt)}
+                      </p>
+                      <p className="truncate font-mono text-xs" title={m.channelListingId}>
+                        Listing: {m.channelListingId}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="space-y-3">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">
+              Remediation recommendations
+            </h2>
+            {remediations.length === 0 ? (
+              <p className="rounded-lg border border-border bg-surface px-4 py-8 text-center text-sm text-foreground-muted">
+                No remediations.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {remediations.map((r) => (
+                  <Card key={r.id} className="border-border bg-surface">
+                    <CardHeader className="flex flex-row flex-wrap items-center gap-2 space-y-0 pb-2">
+                      <Badge variant={severityBadgeVariant(r.severity)}>
+                        {r.severity}
+                      </Badge>
+                      <Badge variant="outline">{r.type.replaceAll("_", " ")}</Badge>
+                      <Badge variant="outline">{r.status.replaceAll("_", " ")}</Badge>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <p className="text-sm text-foreground">{r.description}</p>
+                      <div className="rounded-md border border-border bg-background/50 px-3 py-2">
+                        <p className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
+                          Suggested action
+                        </p>
+                        <p className="mt-1 text-sm text-foreground">{r.suggestedAction}</p>
+                      </div>
+                      <p className="text-xs text-foreground-muted">
+                        Monitor {r.monitorId} · {formatDate(r.createdAt)}
+                      </p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
     </motion.div>
   );
 }
