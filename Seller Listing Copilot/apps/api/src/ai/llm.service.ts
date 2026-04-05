@@ -12,9 +12,9 @@ import { AiConfig } from '@/config/ai.config';
 const SYSTEM_GUARDRAILS = `Never generate weight, dimensions, voltage, wattage, or compatibility claims unless they appear verbatim in the provided source evidence. If you cannot find a value in the evidence, return null with a low confidence score.`;
 
 @Injectable()
-export class ClaudeService {
+export class LlmService {
   private client: OpenAI | null = null;
-  private readonly logger = new Logger(ClaudeService.name);
+  private readonly logger = new Logger(LlmService.name);
 
   constructor(
     private readonly config: ConfigService,
@@ -22,7 +22,7 @@ export class ClaudeService {
   ) {
     const ai = this.config.get<AiConfig>('ai');
     if (!ai?.apiKey) {
-      this.logger.error('⚠ AI API key is NOT configured — set OPENROUTER_API_KEY in apps/api/.env (get a free key at https://console.groq.com/keys)');
+      this.logger.error('⚠ AI API key is NOT configured — set GROQ_API_KEY in apps/api/.env (get a free key at https://console.groq.com/keys)');
     } else {
       this.logger.log(`AI configured: model=${ai.model}, baseUrl=${ai.baseUrl}, key=${ai.apiKey.slice(0, 8)}…`);
     }
