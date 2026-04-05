@@ -256,6 +256,11 @@ export class IngestAssetProcessor {
         });
       }
 
+      this.logger.log(
+        `✅ AI vision extraction succeeded for product=${productId}: ${fieldEntries.length} attributes stored` +
+        (productTitle ? `, title="${productTitle.slice(0, 60)}"` : ', no title found'),
+      );
+
       await this.prisma.evidence.create({
         data: {
           productId,
@@ -267,7 +272,10 @@ export class IngestAssetProcessor {
       });
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
-      this.logger.warn(`AI vision extraction failed (non-fatal): ${errMsg}`);
+      this.logger.error(
+        `❌ AI vision extraction FAILED for product=${productId}: ${errMsg}. ` +
+        `Title and description will be missing. Check that the Groq API key is valid and the network can reach api.groq.com.`,
+      );
 
       await this.prisma.attribute.create({
         data: {

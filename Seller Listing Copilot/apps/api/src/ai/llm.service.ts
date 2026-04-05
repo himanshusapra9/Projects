@@ -24,7 +24,13 @@ export class LlmService {
     if (!ai?.apiKey) {
       this.logger.error('⚠ AI API key is NOT configured — set GROQ_API_KEY in apps/api/.env (get a free key at https://console.groq.com/keys)');
     } else {
-      this.logger.log(`AI configured: model=${ai.model}, baseUrl=${ai.baseUrl}, key=${ai.apiKey.slice(0, 8)}…`);
+      const keySource =
+        process.env.GROQ_API_KEY && ai.apiKey === process.env.GROQ_API_KEY.trim()
+          ? 'GROQ_API_KEY env'
+          : process.env.OPENROUTER_API_KEY && ai.apiKey === process.env.OPENROUTER_API_KEY.trim()
+            ? 'OPENROUTER_API_KEY env'
+            : 'built-in fallback';
+      this.logger.log(`AI configured: model=${ai.model}, baseUrl=${ai.baseUrl}, key=${ai.apiKey.slice(0, 8)}… (source: ${keySource})`);
     }
   }
 
