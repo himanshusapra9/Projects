@@ -19,7 +19,14 @@ export class ClaudeService {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) {
+    const ai = this.config.get<AiConfig>('ai');
+    if (!ai?.apiKey) {
+      this.logger.error('⚠ AI API key is NOT configured — set OPENROUTER_API_KEY in apps/api/.env (get a free key at https://console.groq.com/keys)');
+    } else {
+      this.logger.log(`AI configured: model=${ai.model}, baseUrl=${ai.baseUrl}, key=${ai.apiKey.slice(0, 8)}…`);
+    }
+  }
 
   private getAi(): AiConfig {
     const ai = this.config.get<AiConfig>('ai');
