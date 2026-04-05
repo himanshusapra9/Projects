@@ -26,6 +26,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiGet, apiPost } from "@/lib/api";
+import { toast } from "sonner";
 
 function resolveImageBase(): string {
   if (typeof window === "undefined") return "http://localhost:4000/api/v1";
@@ -343,11 +344,17 @@ export default function ListingPreviewPage() {
   const handleRetryExtraction = async () => {
     setRetrying(true);
     try {
-      await apiPost(`/products/${id}/retry-extraction`);
-      await new Promise((r) => setTimeout(r, 5000));
-      await fetchData();
-    } catch {
-      /* fetchData will show latest state */
+      const result = await apiPost<{ queued: number; message: string }>(`/products/${id}/retry-extraction`);
+      if (result.queued === 0) {
+        toast.warning(result.message || "No assets to re-extract");
+      } else {
+        toast.success(`Re-queued ${result.queued} asset(s) — waiting for extraction…`);
+        await new Promise((r) => setTimeout(r, 6000));
+        await fetchData();
+        toast.success("Data refreshed");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Retry extraction failed");
     } finally {
       setRetrying(false);
     }

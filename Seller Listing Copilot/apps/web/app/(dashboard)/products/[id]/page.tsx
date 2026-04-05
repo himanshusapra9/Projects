@@ -225,14 +225,14 @@ export default function ProductTruthPage() {
   const groupedAttrs = ATTR_GROUPS.map((g) => ({
     ...g,
     attrs: displayAttrs.filter((a) =>
-      g.keys.some((k) => a.fieldName.toLowerCase().includes(k)),
+      g.keys.some((k) => a.fieldName.toLowerCase() === k),
     ),
   }));
 
   const ungrouped = displayAttrs.filter(
     (a) =>
       !ATTR_GROUPS.some((g) =>
-        g.keys.some((k) => a.fieldName.toLowerCase().includes(k)),
+        g.keys.some((k) => a.fieldName.toLowerCase() === k),
       ),
   );
 

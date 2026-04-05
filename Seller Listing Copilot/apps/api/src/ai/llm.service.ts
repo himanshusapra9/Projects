@@ -223,7 +223,12 @@ export class LlmService {
       throw new InternalServerErrorException('Model did not return JSON');
     }
     const slice = trimmed.slice(start, end + 1);
-    return JSON.parse(slice) as Record<string, unknown>;
+    try {
+      return JSON.parse(slice) as Record<string, unknown>;
+    } catch (e) {
+      this.logger.error(`Failed to parse model JSON: ${e instanceof Error ? e.message : String(e)}. Raw: ${slice.slice(0, 300)}`);
+      throw new InternalServerErrorException('Model returned malformed JSON');
+    }
   }
 
   private async trackUsage(

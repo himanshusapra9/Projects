@@ -153,16 +153,21 @@ export class IngestAssetProcessor {
           });
       }
 
-      await this.prisma.attribute.create({
-        data: {
-          productId: product.id,
-          fieldName: 'ingestion.source',
-          value: asset.originalFilename,
-          confidence: 0.9,
-          method: ExtractionMethod.STRUCTURED_PARSE,
-          requiresReview: false,
-        },
+      const existingSource = await this.prisma.attribute.findFirst({
+        where: { productId: product.id, fieldName: 'ingestion.source', value: asset.originalFilename },
       });
+      if (!existingSource) {
+        await this.prisma.attribute.create({
+          data: {
+            productId: product.id,
+            fieldName: 'ingestion.source',
+            value: asset.originalFilename,
+            confidence: 0.9,
+            method: ExtractionMethod.STRUCTURED_PARSE,
+            requiresReview: false,
+          },
+        });
+      }
 
       await this.markCompleteIfReady(ingestionJobId);
     } catch (err) {
@@ -203,8 +208,15 @@ export class IngestAssetProcessor {
       );
 
       for (const [field, value] of fieldEntries) {
-        const strValue = Array.isArray(value) ? value.join(', ') : String(value);
-        if (!strValue || strValue === 'null') continue;
+        let strValue: string;
+        if (Array.isArray(value)) {
+          strValue = value.join(', ');
+        } else if (typeof value === 'object') {
+          strValue = JSON.stringify(value);
+        } else {
+          strValue = String(value);
+        }
+        if (!strValue || strValue === 'null' || strValue === 'undefined') continue;
 
         const existing = await this.prisma.attribute.findFirst({
           where: { productId, fieldName: field },
