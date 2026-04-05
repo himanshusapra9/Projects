@@ -25,7 +25,7 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { apiGet } from "@/lib/api";
+import { api, apiGet } from "@/lib/api";
 
 interface Product {
   id: string;
@@ -288,7 +288,18 @@ export default function ListingPreviewPage() {
       ]);
       setProduct(prod);
       setAttributes(attrs);
-      setImages(imgs);
+      const resolvedImages = await Promise.all(
+        imgs.map(async (img) => {
+          try {
+            const resp = await api.get(img.url, { responseType: "blob" });
+            const blobUrl = URL.createObjectURL(resp.data as Blob);
+            return { ...img, url: blobUrl };
+          } catch {
+            return img;
+          }
+        }),
+      );
+      setImages(resolvedImages);
       setPackages(pkgs);
       setError(null);
     } catch (e) {
@@ -300,6 +311,12 @@ export default function ListingPreviewPage() {
 
   useEffect(() => {
     fetchData();
+    return () => {
+      images.forEach((img) => {
+        if (img.url.startsWith("blob:")) URL.revokeObjectURL(img.url);
+      });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData]);
 
   const prevImage = () =>

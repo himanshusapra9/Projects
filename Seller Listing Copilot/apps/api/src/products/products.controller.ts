@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -14,6 +15,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 import { RequestUser } from '@/auth/interfaces/request-user.interface';
@@ -52,10 +54,25 @@ export class ProductsController {
   }
 
   @Get(':id/images')
-  @ApiOperation({ summary: 'Get presigned image URLs for product source assets' })
+  @ApiOperation({ summary: 'Get image URLs for product source assets' })
   async images(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     const data = await this.products.getImages(user.organizationId, id);
     return { success: true, data };
+  }
+
+  @Get(':id/images/:assetId/file')
+  @ApiOperation({ summary: 'Stream product image bytes (proxy for external access)' })
+  async imageFile(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Param('assetId') assetId: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, mimeType } = await this.products.getImageFile(user.organizationId, id, assetId);
+    res.set('Content-Type', mimeType || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=3600');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.send(buffer);
   }
 
   @Get(':id/attributes')
