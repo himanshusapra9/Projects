@@ -19,7 +19,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { api, apiGet, apiPatch } from "@/lib/api";
+import { apiGet, apiPatch } from "@/lib/api";
+
+function resolveImageBase(): string {
+  if (typeof window === "undefined") return "http://localhost:4000/api/v1";
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") return "http://localhost:4000/api/v1";
+  return `${window.location.origin}/api/v1`;
+}
 
 interface Product {
   id: string;
@@ -165,18 +172,11 @@ export default function ReviewListingPage() {
       ]);
       setProduct(prod);
       setAttributes(attrs);
-      const resolvedImages = await Promise.all(
-        imgs.map(async (img) => {
-          try {
-            const resp = await api.get(img.url, { responseType: "blob" });
-            const blobUrl = URL.createObjectURL(resp.data as Blob);
-            return { ...img, url: blobUrl };
-          } catch {
-            return img;
-          }
-        }),
-      );
-      setImages(resolvedImages);
+      const apiBase = resolveImageBase();
+      setImages(imgs.map((img) => ({
+        ...img,
+        url: img.url.startsWith("http") ? img.url : `${apiBase}${img.url}`,
+      })));
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load product");
@@ -187,12 +187,6 @@ export default function ReviewListingPage() {
 
   useEffect(() => {
     fetchData();
-    return () => {
-      images.forEach((img) => {
-        if (img.url.startsWith("blob:")) URL.revokeObjectURL(img.url);
-      });
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData]);
 
   const displayAttrs = (() => {

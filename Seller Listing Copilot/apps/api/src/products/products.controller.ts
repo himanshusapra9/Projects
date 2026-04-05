@@ -17,7 +17,7 @@ import {
 } from '@nestjs/swagger';
 import type { Response } from 'express';
 import { CurrentUser } from '@/auth/decorators/current-user.decorator';
-import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard, Public } from '@/auth/guards/jwt-auth.guard';
 import { RequestUser } from '@/auth/interfaces/request-user.interface';
 import { CreateAttributeDto } from './dto/create-attribute.dto';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -71,6 +71,21 @@ export class ProductsController {
     const { buffer, mimeType } = await this.products.getImageFile(user.organizationId, id, assetId);
     res.set('Content-Type', mimeType || 'image/jpeg');
     res.set('Cache-Control', 'public, max-age=3600');
+    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.send(buffer);
+  }
+
+  @Public()
+  @Get(':id/images/:assetId/raw')
+  @ApiOperation({ summary: 'Public image endpoint — no auth required, asset IDs are unguessable' })
+  async imageRaw(
+    @Param('id') id: string,
+    @Param('assetId') assetId: string,
+    @Res() res: Response,
+  ) {
+    const { buffer, mimeType } = await this.products.getImageFilePublic(id, assetId);
+    res.set('Content-Type', mimeType || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     res.send(buffer);
   }

@@ -25,7 +25,14 @@ import {
 import { useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { api, apiGet } from "@/lib/api";
+import { apiGet } from "@/lib/api";
+
+function resolveImageBase(): string {
+  if (typeof window === "undefined") return "http://localhost:4000/api/v1";
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") return "http://localhost:4000/api/v1";
+  return `${window.location.origin}/api/v1`;
+}
 
 interface Product {
   id: string;
@@ -288,18 +295,11 @@ export default function ListingPreviewPage() {
       ]);
       setProduct(prod);
       setAttributes(attrs);
-      const resolvedImages = await Promise.all(
-        imgs.map(async (img) => {
-          try {
-            const resp = await api.get(img.url, { responseType: "blob" });
-            const blobUrl = URL.createObjectURL(resp.data as Blob);
-            return { ...img, url: blobUrl };
-          } catch {
-            return img;
-          }
-        }),
-      );
-      setImages(resolvedImages);
+      const apiBase = resolveImageBase();
+      setImages(imgs.map((img) => ({
+        ...img,
+        url: img.url.startsWith("http") ? img.url : `${apiBase}${img.url}`,
+      })));
       setPackages(pkgs);
       setError(null);
     } catch (e) {
@@ -311,12 +311,6 @@ export default function ListingPreviewPage() {
 
   useEffect(() => {
     fetchData();
-    return () => {
-      images.forEach((img) => {
-        if (img.url.startsWith("blob:")) URL.revokeObjectURL(img.url);
-      });
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchData]);
 
   const prevImage = () =>
