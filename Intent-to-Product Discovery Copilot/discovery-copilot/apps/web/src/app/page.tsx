@@ -2,9 +2,9 @@
 
 import { useState, useCallback, useRef } from 'react';
 import {
-  Search, ArrowRight, Sparkles, ShieldCheck, Zap, Mic, MicOff,
-  Bot, BarChart3, Brain, ShoppingCart, MessageSquare, SlidersHorizontal,
-  Globe, Lock, Clock, ChevronRight, Star, Code2, Layers, Database,
+  Search, ArrowRight, Sparkles, Mic, MicOff,
+  BarChart3, Brain, ShoppingCart, MessageSquare, SlidersHorizontal,
+  Globe, Lock, ChevronRight, Code2, Layers, Database,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

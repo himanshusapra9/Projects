@@ -74,7 +74,7 @@
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| Runtime | Python 3.9+ | Server language |
+| Runtime | Python 3.8+ | Server language |
 | Framework | FastAPI 0.115 | Async REST API framework |
 | HTTP Client | httpx 0.28 | Async HTTP requests to external APIs |
 | NLP | TextBlob 0.18 | Sentiment analysis and text processing |
@@ -337,7 +337,7 @@ Additional touch-device optimizations:
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.8+
 - pip
 - Internet connection (for external API calls)
 
@@ -345,7 +345,7 @@ Additional touch-device optimizations:
 
 ```bash
 git clone https://github.com/himanshusapra9/Projects.git
-cd Projects/reddit-dashboard
+cd "Projects/AI OSINT Dashboard"
 
 python3 -m venv venv
 source venv/bin/activate        # macOS/Linux

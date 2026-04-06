@@ -1,75 +1,140 @@
-# DataSteward — Autonomous Data Pipeline Health Agent
+# DataSteward
 
-> Monitors data pipeline health — detects row count anomalies (Isolation Forest), distribution drift (KS-test), fuzzy duplicates (MinHash LSH), and generates root cause analysis via Claude.
+**Intelligent data pipeline health monitoring** with ML-powered anomaly detection, drift detection, duplicate finding, freshness prediction, incident modeling, and root cause analysis (Anthropic Claude).
 
-DataSteward monitors data pipeline health by profiling tables, detecting anomalies
-in row counts and metric distributions, finding near-duplicate records, predicting
-pipeline freshness, and generating root cause hypotheses. It uses statistical methods
-(Isolation Forest, KS-test, MinHash LSH) for detection and Claude for root cause analysis.
+DataSteward profiles tables, learns baselines, flags row-count and multivariate anomalies, detects distribution shift, surfaces near-duplicate records, predicts pipeline freshness, and can generate remediation-oriented root cause hypotheses. Core detection uses **Isolation Forest**, **sigma-based baselines (Z-score style)**, **Kolmogorov–Smirnov drift tests**, and **MinHash LSH**; optional **Claude** integration powers narrative root cause analysis.
 
-## What's Implemented
+---
 
-### ML & Detection Modules
+## Features
 
-| Module | What it does | Algorithm | Status |
-|--------|-------------|-----------|--------|
-| **Anomaly detector** | Detects row count drops/spikes against learned baselines; multivariate anomaly detection | Statistical baselines (mean ± 2.5σ) for row counts + sklearn IsolationForest for multivariate metrics | **Real**, tested |
-| **Drift detector** | Detects distribution shifts between baseline and current data | scipy `ks_2samp` (Kolmogorov-Smirnov two-sample test) | **Real**, tested |
-| **Duplicate finder** | Finds near-duplicate records using fuzzy matching | datasketch MinHash + MinHashLSH (configurable threshold + permutations) | **Real**, tested |
-| **Freshness predictor** | Predicts expected pipeline completion time and flags late runs | Rolling mean/std of completion history (threshold: mean + 2σ) | **Real**, tested |
-| **Root cause analyzer** | Generates root cause hypotheses with remediation steps | **Real function**: Claude claude-sonnet-4-6 via Anthropic SDK; **Mock function**: rule-based (drop → upstream outage, spike → duplicate ingestion) | Both implemented; mock used in tests |
+| Area | Capabilities |
+|------|----------------|
+| **Anomaly detection** | Row-count baselines (mean ± 2.5σ), multivariate **Isolation Forest** (`scikit-learn`) |
+| **Drift detection** | Two-sample **KS tests** (`scipy.stats.ks_2samp`) between baseline and current distributions |
+| **Duplicate finding** | **MinHash LSH** (`datasketch`) for near-duplicate strings |
+| **Freshness prediction** | Rolling statistics over completion history; late-run detection |
+| **Incident management** | Pydantic `Incident` model (severity, remediation, lifecycle); integration tests for incident creation from signals |
+| **Root cause analysis** | **Anthropic Claude** via SDK; rule-based fallback for tests/offline use |
 
-**Note on Prophet**: The README previously mentioned Facebook Prophet for time-series forecasting. The actual implementation uses **statistical baselines (mean ± 2.5σ)** rather than Prophet. Prophet is listed in requirements but not imported or used.
+---
 
-### Monitoring
+## Tech stack
 
-| Component | What it does | Status |
-|-----------|-------------|--------|
-| **Table profiler** | Computes row count, distinct PK count, null counts per column, numeric stats (avg/min/max), last updated timestamp | **Real** — implemented as `profile_table_from_data` (in-memory); SQL-based profiler defined but requires live database |
-| **Baseline manager** | Stores and retrieves metric baselines per table | **Real** — JSON file storage under `.datasteward/baselines/` |
+| Layer | Technologies |
+|--------|----------------|
+| **Backend** | Python, **FastAPI**, **scikit-learn**, **scipy**, **pandas**, **datasketch**, **Anthropic** SDK |
+| **Frontend** | **Next.js 14**, **React**, **Tailwind CSS** |
+| **Ops** | **Docker Compose**, **PostgreSQL** 16 |
 
-### Models (Pydantic)
+---
 
-- `TableProfile` — row count, PK uniqueness, null counts, numeric stats, staleness
-- `Incident` — table name, anomaly type, severity (P0-P3), expected/actual values, root cause, remediation steps, auto-heal action, status lifecycle
-- `QualityScore` — per-table quality dimensions (completeness, freshness, uniqueness, consistency) with weighted overall score
+## Prerequisites
 
-### API (FastAPI — stub endpoints)
+- **Python** 3.10+
+- **Node.js** 18+
+- **Docker** & Docker Compose plugin — optional for pure local dev, **required** for `./setup.sh` (that script brings up Postgres + API + UI in containers)
 
-- `GET /api/v1/incidents` — Returns empty list
-- `GET /api/v1/tables/{name}/score` — Returns fixed score 100
-- `GET /api/v1/tables/{name}/profile` — Returns placeholder
-- `GET /health` — Health check
+---
 
-### What's Not Implemented
+## Quick start
 
-- **Facebook Prophet** — listed in requirements, not used (statistical baselines instead)
-- **SQL-based profiling** against live databases (Snowflake, BigQuery, Redshift, Postgres, DuckDB) — connector dirs exist, no implementation
-- **Airflow integration** — auto-heal actions defined in incident model but no Airflow REST API client
-- **dbt Cloud integration** — mentioned in spec, not implemented
-- **Slack/PagerDuty alerting** — integration dirs exist, no implementation
-- **Celery scheduling** — listed in requirements, not used
-- **Database persistence** — no SQLAlchemy models; profiles stored as in-memory dicts or JSON files
+### Option A — `./setup.sh` (and optional `./run.sh`)
 
-### Frontend (Next.js 14 placeholder)
+1. **`./setup.sh`** — Checks `python3`, `npm`, and `docker compose`; creates `.venv`, installs `requirements.txt` and frontend deps; copies `.env.example` → `.env` if missing; runs **`docker compose up --build -d`** (Postgres, API on port **8000**, frontend on **3000**).
 
-- Pipeline health map, incident timeline, quality score trends (static mockup)
+2. **`./run.sh`** *(optional)* — Runs **uvicorn** and **Next.js dev** on `127.0.0.1:8000` and `127.0.0.1:3000` using the local venv. **Stop Docker Compose first** (`docker compose down`) so those ports are free; use this when you want hot-reload without running the app in containers.
 
-### Tests (25 passing)
-
-- Anomaly detector: normal value passes, 70% drop detected, spike detected, unknown table handled, Isolation Forest on normal vs outlier data
-- Drift detector: same distribution → no drift (p>0.05), shifted distribution → drift detected (p<0.05), variance change detected, insufficient data handled
-- Duplicate finder: exact duplicates found, near-duplicates (1 char different) found, 100 records with 10 near-dupes → at least 5 flagged, unique data → no false positives
-- Freshness predictor: prediction with history, insufficient history handled, late detection
-- Profiler: 1000 rows → correct counts + null rates + stats, empty table handled
-- Incident creation: row count drop → P1 incident + auto-heal via DAG rerun, spike → quarantine action
-
-## Setup
+### Option B — Manual
 
 ```bash
 cd datasteward
-python -m venv .venv && source .venv/bin/activate
-make install
+python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -U pip && pip install -r requirements.txt
+cd frontend && npm install && cd ..
 cp .env.example .env
+# edit .env — at least ANTHROPIC_API_KEY if using Claude RCA
 make test
 ```
+
+Run locally (after `export PYTHONPATH="$(pwd)"` from repo root):
+
+```bash
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+# separate terminal: cd frontend && npm run dev
+```
+
+Or use **`./run.sh`** from the repo root (expects `.venv` and runs backend + frontend together).
+
+---
+
+## Environment variables
+
+Copy **`.env.example`** to **`.env`** and set as needed:
+
+| Variable | Purpose |
+|----------|---------|
+| `ANTHROPIC_API_KEY` | Claude root cause analysis (`backend/ml/root_cause_analyzer.py`) |
+| `DATABASE_URL` | PostgreSQL connection (e.g. Compose default in `.env.example`) |
+| `SNOWFLAKE_*`, `BIGQUERY_*`, `REDSHIFT_*` | Reserved for future SQL connectors |
+| `AIRFLOW_*`, `DBT_CLOUD_API_KEY`, `SLACK_BOT_TOKEN`, `PAGERDUTY_API_KEY` | Reserved for orchestration / alerting integrations |
+
+---
+
+## Project structure
+
+```
+datasteward/
+├── backend/
+│   ├── ml/              # Anomaly, drift, duplicates, freshness, root cause
+│   ├── monitoring/      # Profiling, baseline manager
+│   ├── models/          # Pydantic models (incidents, profiles, quality)
+│   ├── api/             # Route modules
+│   ├── main.py          # FastAPI app
+│   └── Dockerfile
+├── frontend/            # Next.js 14 app
+├── tests/
+│   ├── unit/
+│   └── integration/
+├── docker-compose.yml
+├── setup.sh
+├── run.sh
+├── Makefile
+├── requirements.txt
+└── .env.example
+```
+
+---
+
+## Testing
+
+```bash
+make test
+# or: python -m pytest tests/ -v --tb=short
+```
+
+The suite is **25** pytest cases covering anomaly, drift, duplicate, freshness, profiler, and incident flows (`tests/unit/`, `tests/integration/`).
+
+---
+
+## Docker
+
+From the repo root (after `.env` exists):
+
+```bash
+docker compose up --build
+```
+
+Detached (as `setup.sh` does): `docker compose up --build -d`
+
+Services: **postgres** (5432), **api** (8000), **frontend** (3000).
+
+---
+
+## Implementation notes
+
+- **HTTP API** (`backend/main.py`): health + placeholder list/score/profile endpoints; core value is in **library-style** ML/monitoring code and tests.
+- **Facebook Prophet** appears in older docs but is **not** used; row-count behavior uses statistical baselines, not Prophet.
+- **Connectors / Slack / PagerDuty / Airflow**: scaffolding only where present; not fully implemented.
+
+Run `make test` to verify behavior after changes.

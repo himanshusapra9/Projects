@@ -22,7 +22,14 @@ const config = loadConfig();
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: config.env === 'production' ? process.env.ALLOWED_ORIGINS?.split(',') : '*' }));
+app.use(
+  cors({
+    origin:
+      config.env === 'production'
+        ? process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000']
+        : '*',
+  }),
+);
 app.use(express.json({ limit: '1mb' }));
 app.use(rateLimiter);
 

@@ -1,6 +1,7 @@
 /**
  * API client for Return Prevention + Fit Confidence Engine backend.
- * Base URL: set NEXT_PUBLIC_API_URL (e.g. http://localhost:3001/api/v1)
+ * Base URL: set NEXT_PUBLIC_API_URL to the API origin (e.g. http://localhost:3001);
+ * `/api/v1` is appended automatically. Optional: NEXT_PUBLIC_API_KEY for `x-api-key`.
  */
 
 export type TenantSession = {
@@ -27,6 +28,22 @@ export type EvidenceRef = {
   id: string;
   snippet?: string;
   weight: number;
+};
+
+/** Matches `FitConfidenceAssessment` from the API (`api-responses.types.ts`). */
+export type FitConfidenceAssessment = {
+  confidence: number;
+  categoryKind: string;
+  evidence: EvidenceRef[];
+  dimensions: Array<{
+    key: string;
+    label: string;
+    score: number;
+    weight: number;
+    detail?: string;
+  }>;
+  betweenSizeNote?: string;
+  uncertainty: { epistemic: number; aleatoric: number; total: number };
 };
 
 export type DecisionResponse = {
@@ -138,8 +155,13 @@ export class ApiError extends Error {
 }
 
 function getBaseUrl(): string {
-  const base = process.env.NEXT_PUBLIC_API_URL ?? "/api/v1";
-  return base.replace(/\/$/, "");
+  const raw =
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
+  const trimmed = raw.replace(/\/$/, "");
+  if (trimmed.endsWith("/api/v1")) {
+    return trimmed;
+  }
+  return `${trimmed}/api/v1`;
 }
 
 async function parseJson<T>(res: Response): Promise<T> {
@@ -157,10 +179,12 @@ async function request<T>(
   init?: RequestInit,
 ): Promise<T> {
   const url = `${getBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`;
+  const apiKey = process.env.NEXT_PUBLIC_API_KEY;
   const res = await fetch(url, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...(apiKey ? { "x-api-key": apiKey } : {}),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
@@ -178,13 +202,13 @@ async function request<T>(
 
 export const api = {
   getDecision: (body: FitConfidenceBody) =>
-    request<DecisionResponse>("/decision", {
+    request<DecisionResponse>("/recommend", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
   getFitConfidence: (body: FitConfidenceBody) =>
-    request<DecisionResponse>("/fit-confidence", {
+    request<FitConfidenceAssessment>("/fit-confidence", {
       method: "POST",
       body: JSON.stringify(body),
     }),

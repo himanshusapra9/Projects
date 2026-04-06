@@ -12,7 +12,8 @@ const updateMemorySchema = z.object({
 });
 
 memoryRouter.get('/:userId', async (req: Request, res: Response) => {
-  const { userId } = req.params;
+  const userId =
+    typeof req.params.userId === 'string' ? req.params.userId : req.params.userId[0];
 
   // In production:
   //   1. Fetch from long_term_memory table

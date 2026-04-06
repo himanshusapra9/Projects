@@ -23,6 +23,19 @@ class SandboxExecutor:
         self.monitor = monitor
         self.repo = git.Repo(base_dir)
 
+    def _default_branch(self) -> git.Head:
+        """Resolve main, then master, else first available branch."""
+        head_names = [h.name for h in self.repo.heads]
+        for name in ("main", "master"):
+            if name in head_names:
+                return self.repo.heads[name]
+        heads_list = list(self.repo.heads)
+        if not heads_list:
+            raise ValueError(
+                "Repository has no branches; cannot run sandbox experiments."
+            )
+        return heads_list[0]
+
     async def run_experiment(
         self, proposal: ExperimentProposal, exp_id: str
     ) -> ExperimentResult:
@@ -37,7 +50,8 @@ class SandboxExecutor:
                 safety_flags=violations,
             )
 
-        self.repo.create_head(branch_name, self.repo.heads["main"])
+        default_branch = self._default_branch()
+        self.repo.create_head(branch_name, default_branch)
         self.repo.heads[branch_name].checkout()
 
         try:
@@ -47,7 +61,7 @@ class SandboxExecutor:
             file_safe, file_violations = self.monitor.validate_touched_files(changed)
             if not file_safe:
                 self.repo.git.checkout("--", ".")
-                self.repo.heads["main"].checkout()
+                default_branch.checkout()
                 return ExperimentResult(
                     exp_id=exp_id,
                     status="rejected",
@@ -97,7 +111,7 @@ class SandboxExecutor:
             return result
 
         finally:
-            self.repo.heads["main"].checkout()
+            default_branch.checkout()
             try:
                 self.repo.delete_head(branch_name, force=True)
             except Exception:

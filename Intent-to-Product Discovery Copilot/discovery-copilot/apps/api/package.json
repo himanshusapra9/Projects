@@ -14,7 +14,6 @@
     "@discovery-copilot/ai": "*",
     "@discovery-copilot/ranking": "*",
     "@discovery-copilot/shared": "*",
-    "@discovery-copilot/config": "*",
     "express": "^4.21.0",
     "cors": "^2.8.5",
     "helmet": "^8.0.0",

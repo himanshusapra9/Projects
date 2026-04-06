@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from pydantic import BaseModel, Field
+
 
 class DailyBriefing(BaseModel):
     date: str = Field(...)

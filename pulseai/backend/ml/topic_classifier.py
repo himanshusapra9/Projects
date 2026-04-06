@@ -1,24 +1,35 @@
 from __future__ import annotations
-from typing import Optional
 
 _classifier_instance = None
+
 
 def _get_classifier():
     global _classifier_instance
     if _classifier_instance is None:
         from transformers import pipeline as hf_pipeline
+
         _classifier_instance = hf_pipeline(
             "zero-shot-classification",
             model="facebook/bart-large-mnli",
         )
     return _classifier_instance
 
-def classify_topics(text: str, candidate_labels: list[str], threshold: float = 0.3) -> list[str]:
+
+def classify_topics(
+    text: str, candidate_labels: list[str], threshold: float = 0.3
+) -> list[str]:
     classifier = _get_classifier()
     result = classifier(text[:512], candidate_labels, multi_label=True)
-    return [label for label, score in zip(result["labels"], result["scores"]) if score >= threshold]
+    return [
+        label
+        for label, score in zip(result["labels"], result["scores"])
+        if score >= threshold
+    ]
 
-def classify_topics_mock(text: str, candidate_labels: list[str], threshold: float = 0.3) -> list[str]:
+
+def classify_topics_mock(
+    text: str, candidate_labels: list[str], threshold: float = 0.3
+) -> list[str]:
     """Mock topic classification for testing."""
     text_lower = text.lower()
     matched = []

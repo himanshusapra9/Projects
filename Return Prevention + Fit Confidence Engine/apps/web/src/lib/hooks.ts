@@ -5,7 +5,7 @@ import {
   AlternativesBody,
   AlternativesResponse,
   ApiError,
-  DecisionResponse,
+  FitConfidenceAssessment,
   FitConfidenceBody,
   ReturnRiskBody,
   ReturnRiskResponse,
@@ -62,9 +62,9 @@ export function useFitConfidence(body: FitConfidenceBody | null) {
     () => api.getFitConfidence(body!),
     [body],
   );
-  const q = useApiQuery<DecisionResponse>(enabled, key, fetcher);
+  const q = useApiQuery<FitConfidenceAssessment>(enabled, key, fetcher);
   return {
-    decision: q.data,
+    assessment: q.data,
     loading: q.loading,
     error: q.error,
     refetch: q.refetch,

@@ -1,74 +1,117 @@
-# PulseAI — Customer Signal Intelligence Agent
+# PulseAI
 
-> Ingests customer feedback from Intercom, Zendesk & more — classifies sentiment, detects pain points, scores urgency, clusters insights, and flags anomalies with Isolation Forest.
+**PulseAI** is a customer signal analysis platform. It ingests feedback from multiple channels (Intercom, Zendesk, and extensible connectors), then applies NLP- and ML-based processing to extract actionable insights: sentiment, topics, pain points, urgency, anomalies, and customer-level signals.
 
-PulseAI processes customer feedback from multiple platforms, classifies signals by
-topic and urgency, clusters related feedback into Insight Cards, detects anomalies
-in sentiment metrics, and generates daily product briefings.
+## Features
 
-## What's Implemented
+- **Sentiment analysis** — Positive / negative / neutral classification  
+- **Topic classification** — Multi-label assignment to product and support categories  
+- **NER / pain point extraction** — Bug reports, feature requests, churn signals, pricing, competitors  
+- **Urgency scoring** — Numeric 0–10 urgency from text and behavioral cues  
+- **Anomaly detection** — Unusual spikes in sentiment or volume (e.g., isolation-based models)  
+- **Churn prediction** — Per-customer churn risk estimates  
+- **Customer clustering** — Grouping related signals (e.g., insight cards by topic and strength)  
+- **Briefing generation** — Structured summaries from clustered insights  
 
-### Ingestion Layer
+*Implementation note:* The active pipeline favors fast, deterministic paths (keyword/heuristic models and scikit-learn where wired). Optional Hugging Face–based classifiers exist in the codebase but are not always used by the default pipeline. See module docstrings and tests for details.
 
-| Connector | Status | Method |
-|-----------|--------|--------|
-| Intercom webhooks | **Real** parser | Extracts feedback from Intercom conversation payloads |
-| Zendesk webhooks | **Real** parser | Extracts feedback from Zendesk ticket payloads |
-| Slack, Reddit, Twitter, App Store, Google Play | **Scaffolded** (connector dirs exist, no implementation) | — |
+## Tech stack
 
-### ML Pipeline (keyword/heuristic — production HF models available but not wired in)
+| Area | Technologies |
+|------|----------------|
+| **Backend** | Python, FastAPI, Uvicorn |
+| **ML / NLP** | `transformers`, `sentence-transformers`, `scikit-learn`, `pandas`, `numpy`, `torch` (see `requirements.txt`) |
+| **Frontend** | Next.js 14, React 18, Tailwind CSS |
 
-| Module | What it does | Algorithm |
-|--------|-------------|-----------|
-| **Sentiment analysis** | Classifies text as positive/negative/neutral | **Active path**: keyword matching (`analyze_sentiment_mock`). **Available but unused**: cardiffnlp/twitter-roberta-base-sentiment-latest (HuggingFace transformers) |
-| **Topic classification** | Assigns feedback to 14 topic categories | **Active path**: keyword matching against topic→keyword map (`classify_topics_mock`). **Available but unused**: facebook/bart-large-mnli zero-shot classification |
-| **Pain point NER** | Detects bug reports, feature requests, churn signals, pricing complaints, competitor mentions | Rule-based keyword pattern matching (5 categories, 8+ keywords each) |
-| **Urgency scoring** | Scores feedback urgency 0-10 | Weighted linear model on 5 features (sentiment, caps ratio, exclamation count, churn keywords, text length) — fixed weights, not trained |
-| **Anomaly detection** | Detects spikes in negative sentiment or volume | sklearn IsolationForest (contamination=0.05) — real, tested |
-| **Churn prediction** | Estimates churn probability per customer | Logistic function with hand-set weights (not a trained LightGBM model) |
-| **Insight Card clustering** | Groups feedback by topic into actionable cards | Topic-based grouping with signal strength scoring (not BERTopic — simple dict aggregation) |
+## Prerequisites
 
-### Processing Pipeline
+- **Python** 3.10 or newer  
+- **Node.js** 18 or newer (for the frontend)  
+- **npm** (comes with Node)
 
-- `pipeline.py` — Runs each `FeedbackItem` through sentiment → topics → pain points → urgency scoring
-- `insight_card_builder.py` — Groups processed feedback by topic, computes aggregate stats, generates InsightCards sorted by signal strength
-- `briefing_generator.py` — Generates a structured daily briefing from InsightCards (template-based, not Claude)
+## Quick start
 
-### API (FastAPI — stub endpoints)
+### Option A — Scripts
 
-- `POST /api/v1/webhooks/{platform}` — Accepts webhook payloads (returns acknowledgment, no processing)
-- `GET /api/v1/insights` — Returns empty list (not connected to pipeline)
-- `GET /api/v1/briefing/{date}` — Returns placeholder text
-- `GET /health` — Health check
-
-### Frontend (Next.js 14 placeholder)
-
-- Dashboard landing with Insight Cards, Daily Briefing, and Roadmap Priority panels
-
-### What's Available But Not Wired In
-
-- **HuggingFace sentiment** (cardiffnlp/twitter-roberta-base-sentiment-latest) — real pipeline in `sentiment.py`, not used by `pipeline.py`
-- **HuggingFace zero-shot topics** (facebook/bart-large-mnli) — real pipeline in `topic_classifier.py`, not used by `pipeline.py`
-- **Claude daily briefing** — mentioned in spec, not implemented (uses template generator)
-- **BERTopic clustering** — listed in requirements, not used in code
-- **Celery workers, PostgreSQL** — in requirements/docker-compose, no backend usage
-
-### Tests (29 passing)
-
-- Sentiment mock: positive/negative/neutral classification
-- Topic classification: billing, performance, security, mobile detection
-- Urgency scoring: high urgency (negative + churn), low urgency (neutral), bounds clamping
-- Anomaly detection: Isolation Forest on normal vs 3σ spike data
-- Insight Card builder: clustering, min cluster size filtering, signal strength scaling
-- Webhook parsing: Intercom + Zendesk payload extraction
-- Full pipeline: 50 mock feedback items → processed → cards generated → briefing non-empty
-
-## Setup
+From the repository root:
 
 ```bash
-cd pulseai
-python -m venv .venv && source .venv/bin/activate
-make install
-cp .env.example .env
-make test
+./setup.sh && ./run.sh
 ```
+
+`setup.sh` creates a `.venv`, installs Python dependencies from `requirements.txt`, copies `.env.example` → `.env` if needed, and runs `npm install` in `frontend/`.  
+`run.sh` starts the FastAPI app on `http://127.0.0.1:8000` and the Next.js dev server for the UI.
+
+### Option B — Manual
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
+
+cp .env.example .env        # optional; edit as needed
+
+cd frontend && npm install && cd ..
+
+# Terminal 1 — API
+export PYTHONPATH="$(pwd)"
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+
+# Terminal 2 — frontend
+cd frontend && npm run dev
+```
+
+You can also run backend tests with `make test` after the Python venv is set up and dependencies installed.
+
+## Environment variables
+
+Copy `.env.example` to `.env` and adjust as needed.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ANTHROPIC_API_KEY` | No | Optional; reserved for enhanced or LLM-assisted analysis when integrated. |
+| `INTERCOM_ACCESS_TOKEN`, `ZENDESK_API_TOKEN`, `ZENDESK_SUBDOMAIN`, etc. | No | Optional integrations for live connectors (see `.env.example`). |
+| `DATABASE_URL`, `REDIS_URL` | No | Optional persistence / queueing (scaffolded in tooling; not required for local API + UI). |
+
+## Project structure
+
+```
+pulseai/
+├── backend/
+│   ├── main.py              # FastAPI app entry
+│   ├── processing/          # Pipeline, insight cards, briefings
+│   ├── ml/                  # Sentiment, topics, NER, urgency, anomaly, churn, clustering
+│   ├── models/              # Pydantic / domain models
+│   ├── ingestion/           # Webhooks and connectors
+│   ├── api/                 # API package layout
+│   ├── db/, alerts/         # Supporting modules (scaffold / future use)
+│   └── Dockerfile
+├── frontend/                # Next.js 14 app
+├── tests/                   # `unit/` and `integration/`
+├── setup.sh
+├── run.sh
+├── Makefile
+├── requirements.txt
+└── README.md
+```
+
+## Testing
+
+Tests use **pytest**. From the repo root (with the virtual environment activated and dependencies installed):
+
+```bash
+make test
+# or
+cd backend && python -m pytest ../tests/ -v
+```
+
+The suite currently contains **29** tests covering sentiment, topics, urgency, anomaly detection, insight cards, webhooks, and end-to-end pipeline flows.
+
+## API
+
+The REST API is served by FastAPI. Interactive documentation (Swagger UI) is available at:
+
+**`/docs`** — e.g. `http://127.0.0.1:8000/docs` when the backend is running.
+
+Core routes include `GET /health`, `POST /api/v1/webhooks/{platform}`, `GET /api/v1/insights`, and `GET /api/v1/briefing/{date_str}` (some routes return placeholder data until fully wired to the processing pipeline).

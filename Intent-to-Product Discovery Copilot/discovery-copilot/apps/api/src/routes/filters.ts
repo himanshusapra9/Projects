@@ -12,21 +12,28 @@ const filterSuggestSchema = z.object({
   tenantId: z.string().optional(),
 });
 
-const hardFilterSchema: z.ZodType<HardFilter> = z.object({
-  id: z.string().optional(),
-  attribute: z.string(),
-  operator: z.enum(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'range', 'exists']),
-  value: z.union([
-    z.string(),
-    z.number(),
-    z.boolean(),
-    z.array(z.string()),
-    z.tuple([z.number(), z.number()]),
-  ]),
-  label: z.string(),
-  source: z.enum(['user', 'system']),
-  removable: z.boolean(),
-});
+const hardFilterSchema = z
+  .object({
+    id: z.string().optional(),
+    attribute: z.string(),
+    operator: z.enum(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'range', 'exists']),
+    value: z.union([
+      z.string(),
+      z.number(),
+      z.boolean(),
+      z.array(z.string()),
+      z.tuple([z.number(), z.number()]),
+    ]),
+    label: z.string(),
+    source: z.enum(['user', 'system']),
+    removable: z.boolean(),
+  })
+  .transform(
+    (data): HardFilter => ({
+      ...data,
+      id: data.id ?? uuid(),
+    }),
+  );
 
 const filterApplySchema = z.object({
   category: z.string().min(1),

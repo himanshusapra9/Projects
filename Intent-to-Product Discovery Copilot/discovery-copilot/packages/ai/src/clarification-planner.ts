@@ -79,8 +79,8 @@ export class ClarificationPlanner {
     const hasSizeNeeds = intent.attributeRequirements['size'] != null;
 
     const priceRange = candidates.length > 0
-      ? Math.max(...candidates.map((c) => c.product?.price?.amount ?? c.price.amount)) -
-        Math.min(...candidates.map((c) => c.product?.price?.amount ?? c.price.amount))
+      ? Math.max(...candidates.map((c) => c.price.amount)) -
+        Math.min(...candidates.map((c) => c.price.amount))
       : 0;
 
     return {

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import math
+import os
 import re
 import time
 from collections import Counter
@@ -716,7 +716,14 @@ async def api_insights(
     return result
 
 
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount(
+    "/",
+    StaticFiles(
+        directory=os.path.join(os.path.dirname(os.path.abspath(__file__)), "static"),
+        html=True,
+    ),
+    name="static",
+)
 
 
 if __name__ == "__main__":

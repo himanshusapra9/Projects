@@ -400,7 +400,7 @@ function extractBrand(title: string): string {
   for (const b of known) {
     if (lower.includes(b.toLowerCase())) return b;
   }
-  return title.split(/[\s,\-]+/)[0] || 'Unknown';
+  return title.split(/[\s,-]+/)[0] || 'Unknown';
 }
 
 function generateHeadline(title: string, price: number): string {
@@ -418,7 +418,6 @@ function generateHeadline(title: string, price: number): string {
 function generateReasons(product: Omit<ProductResult, 'reasons'>, rank: number, query: string, allProducts: Omit<ProductResult, 'reasons'>[]): string[] {
   const reasons: string[] = [];
   const lower = product.name.toLowerCase();
-  const qLower = query.toLowerCase();
 
   // 1. Rating-based reason
   if (product.rating >= 4.5) {

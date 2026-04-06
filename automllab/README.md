@@ -1,87 +1,125 @@
-# AutoMLab — Autonomous Overnight ML Experimentation Agent
+# AutoMLab
 
-> Write goals in Markdown, wake up to results — autonomous experiment loop using Claude proposals, Bayesian GP optimization, git-branch sandboxing, and safety-validated code diffs.
+**AutoMLab** is an autonomous ML experimentation platform with AI-driven experiment proposal, sandboxed Git-based execution, safety monitoring, and comprehensive reporting.
 
-AutoMLab is an autonomous ML experimentation agent that proposes, executes, and evaluates
-experiments overnight, guided by a plain English `program.md` file. It uses Claude for
-experiment proposal generation, Gaussian Process regression for trend modeling, and
-sentence-transformers to prevent duplicate experiments.
+## Features
 
-## What's Implemented
+- **AI experiment proposer** — Uses Anthropic Claude to parse research goals and propose experiment batches with code diffs.
+- **Bayesian optimization context** — Gaussian process regression (scikit-learn) on experiment history to inform proposals with trend and uncertainty estimates.
+- **Sandboxed Git-based execution** — Experiments run on isolated branches via GitPython; training runs as a subprocess with metrics parsed for keep/discard decisions.
+- **Safety monitoring** — Static analysis blocks dangerous patterns (e.g. `eval`, `exec`, unsafe subprocess use) and enforces file/budget constraints.
+- **Memory engine** — Persists experiment results in SQLite for learning and dashboards.
+- **Report generation** — Narrative reports and CSV logs via Claude and pandas.
 
-### Core Pipeline (fully wired end-to-end)
+## Tech Stack
 
-| Component | What it does | Key tech |
-|-----------|-------------|----------|
-| **ProgramInterpreter** | Parses `program.md` into structured `ResearchPlan` via Claude | Anthropic SDK (claude-sonnet-4-6) |
-| **ExperimentProposer** | Generates experiment batches with code diffs, filtered for novelty | Anthropic SDK + BAAI/bge-large-en-v1.5 (cosine dedup) + sklearn GP (trend context) |
-| **SafetyMonitor** | Validates diffs against 9 forbidden patterns (eval, exec, os.system, etc.) + file constraints + budget enforcement | Regex-based static analysis |
-| **SandboxExecutor** | Creates git branch, applies patch, runs training subprocess, parses metrics, keeps/discards based on val_loss improvement | GitPython + asyncio subprocess |
-| **MemoryEngine** | Persists all experiment results for GP fitting and reporting | SQLite |
-| **ReportGenerator** | Generates narrative report via Claude + CSV experiment log | Anthropic SDK + pandas |
-| **Orchestrator** | Main async loop: propose → validate → execute → learn → report | Ties all components together |
+| Layer | Technologies |
+|--------|----------------|
+| **Backend** | Python, FastAPI, Anthropic SDK, scikit-learn, sentence-transformers, GitPython |
+| **Frontend** | Next.js 14, React, Tailwind CSS |
+| **Ops** | Docker Compose |
 
-### ML & Algorithms
+Other notable dependencies include PyTorch (training harness), pandas, and uvicorn.
 
-- **Gaussian Process Regression** (sklearn, Matern kernel) — fits on experiment history after 10+ results; provides uncertainty context to the proposer prompt (not a full Bayesian optimization over hyperparameter space)
-- **Sentence-Transformers** (BAAI/bge-large-en-v1.5) — encodes experiment descriptions to filter near-duplicate proposals (cosine threshold 0.90)
-- **Claude claude-sonnet-4-6** — program parsing, experiment proposal generation, morning report narrative
+## Prerequisites
 
-### Training Harness
+- **Python** 3.10+
+- **Node.js** 18+
+- **Docker** (optional) — required if you use `./setup.sh` (the script checks for the `docker` command) or Docker Compose; for a fully manual setup you can omit Docker if you install dependencies yourself.
 
-- `training/nanochat/train.py` — **Toy training script** that simulates loss curves with random decay (used for testing the orchestration loop; not real GPU training)
-- `training/nanochat/model.py` — Real PyTorch GPT-style transformer (6 layers, 6 heads, 384 d_model) — standalone, not used by `train.py`
-- `training/nanochat/data.py` — Real character-level dataset — standalone
-- `training/nanochat/evaluate.py` — Real validation loss computation — standalone
+## Quick Start
 
-### Dashboard API (FastAPI)
-
-- `GET /health` — Health check
-- `GET /api/v1/experiments` — List all experiments from SQLite
-- `GET /api/v1/experiments/best` — Get best-performing experiment
-- `GET /api/v1/report` — Read generated report markdown
-
-### Safety Features
-
-The SafetyMonitor blocks experiments containing:
-- Shell injection (`os.system`, `subprocess` with `shell=True`)
-- Code execution (`eval`, `exec`, `__import__`)
-- System file access, destructive operations (`rm -rf`, `DROP TABLE`, `shutil.rmtree`)
-- Modifications to forbidden files defined in `program.md`
-- Budget overruns (95% threshold of max total hours)
-
-### What's Not Yet Implemented
-
-- GPU memory enforcement (static estimate only, no runtime check)
-- Docker container isolation (runs on host filesystem via git branches)
-- `allowed_files` enforcement (only `forbidden_files` is checked)
-- Real training integration (current `train.py` is a simulation)
-
-### Tests (30 passing)
-
-- Program interpreter parsing (mocked Claude)
-- Experiment proposal validation (mocked Claude + encoder)
-- All 9 forbidden patterns detected by safety monitor
-- Budget enforcement at 95% threshold
-- GP fitting with 12+ mock results
-- Memory engine stores/retrieves from SQLite
-- Report generation (without LLM) + CSV export
-
-## Setup
+### Option A — Scripts
 
 ```bash
 cd automllab
-python -m venv .venv && source .venv/bin/activate
-make install
-cp .env.example .env   # Set ANTHROPIC_API_KEY
-make test
-make run               # Start overnight experiment loop
-make dashboard         # Launch FastAPI dashboard on :8000
+./setup.sh && ./run.sh
 ```
 
-## How It Works
+`setup.sh` creates a virtual environment, installs Python and frontend dependencies, and copies `.env.example` to `.env` if missing. `run.sh` starts the FastAPI dashboard on port **8000** and the Next.js dev server on port **3000**.
 
-1. Write your research goals in `program.md` (see included starter)
-2. Run `make run` — the orchestrator parses the program, proposes experiments, and runs them
-3. Each experiment: create git branch → apply diff → run training → parse metrics → keep/discard
-4. After budget exhaustion or success, a morning report is generated at `.automllab/report.md`
+### Option B — Manual
+
+```bash
+cd automllab
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install --upgrade pip
+pip install -r requirements.txt
+cd frontend && npm install && cd ..
+cp .env.example .env        # set ANTHROPIC_API_KEY and other values
+```
+
+Then in one terminal:
+
+```bash
+source .venv/bin/activate
+uvicorn dashboard.api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+And in another:
+
+```bash
+cd frontend && npx next dev --port 3000
+```
+
+### Autonomous experiment loop
+
+To run the overnight-style orchestrator (propose → validate → execute → report), from the project root with the venv activated:
+
+```bash
+python -m core.orchestrator .
+```
+
+This is also available as `make run`. Generated reports are written under `.automllab/` (e.g. `.automllab/report.md`).
+
+## Environment Variables
+
+Configure a `.env` file (see `.env.example`). The primary variable for Claude-powered features is:
+
+| Variable | Description |
+|----------|-------------|
+| `ANTHROPIC_API_KEY` | API key for Anthropic Claude (program parsing, proposals, reports) |
+
+Optional:
+
+| Variable | Description |
+|----------|-------------|
+| `PROGRAM_MD_PATH` | Path to the research program markdown (default: `program.md`) |
+| `BASE_DIR` | Base directory for runs (default: `.`) |
+
+## Project Structure
+
+```
+automllab/
+├── core/           # Orchestrator, proposer, interpreter, safety, sandbox executor, memory
+├── models/         # Pydantic models (research plan, experiments, reports)
+├── dashboard/      # FastAPI app and API routes
+├── training/       # Training scripts and toy harness (e.g. nanochat)
+├── frontend/       # Next.js 14 dashboard UI
+├── tests/          # pytest suite
+└── backend/        # Thin entry re-exporting the dashboard API (`dashboard.api.main`)
+```
+
+## Testing
+
+```bash
+source .venv/bin/activate
+pytest tests/
+```
+
+There are **30** tests covering program interpretation, proposal validation, safety rules, budget enforcement, GP fitting, memory persistence, and reporting.
+
+## Docker
+
+From the repository root:
+
+```bash
+docker compose up
+```
+
+This builds and runs the **dashboard** (FastAPI on port 8000) and **frontend** (Next.js on port 3000) services. Use `docker compose up --build` after dependency or Dockerfile changes. Ensure `.env` exists (e.g. copy from `.env.example`).
+
+---
+
+For more detail on the pipeline components, API endpoints, and safety rules, see the implementation in `core/`, `dashboard/`, and `tests/`.

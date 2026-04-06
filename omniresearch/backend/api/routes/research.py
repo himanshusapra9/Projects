@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Any, AsyncIterator
 
@@ -7,6 +8,8 @@ from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from models.research_plan import ResearchRequest
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -19,7 +22,7 @@ async def start_research(req: ResearchRequest) -> dict[str, Any]:
 
         run_research_task.delay(task_id, req.model_dump(mode="json"))
     except Exception:
-        pass
+        logger.exception("Failed to enqueue research task for task_id=%s", task_id)
     depth_key = (
         req.depth.value if hasattr(req.depth, "value") else str(req.depth)
     )

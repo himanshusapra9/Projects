@@ -10,7 +10,7 @@ interface RecommendationCardProps {
 
 export function RecommendationCard({ candidate, onFeedback }: RecommendationCardProps) {
   const [expanded, setExpanded] = useState(false);
-  const { product, explanation, badges, tradeoffs, confidence } = candidate;
+  const { product, explanation, badges, tradeoffs } = candidate;
 
   return (
     <div className="group rounded-xl border border-stone-200 bg-white overflow-hidden hover:shadow-md transition-shadow">

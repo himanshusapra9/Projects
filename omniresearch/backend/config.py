@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     reddit_client_secret: str = ""
     groq_api_key: str = ""
     redis_url: str = "redis://localhost:6379/0"
-    chromadb_url: str = "http://localhost:8000"
+    chromadb_url: str = "http://localhost:8001"
     cors_origins: list[str] = Field(default_factory=lambda: ["*"])
 
     model_config = SettingsConfigDict(

@@ -654,7 +654,7 @@ function runModel(key, items, user, users, events, diag, query, intentWeight, se
   else if (key === 'widedeep') {
     const uCats=new Set(),uTags=new Set(user.preferences); histItems.forEach(it=>{uCats.add(it.category);it.tags.forEach(t=>uTags.add(t));});
     const pn=minMax(items.map(i=>i.price)),bn=minMax(items.map(i=>i.bids)),vn=minMax(items.map(i=>i.views));
-    scored = items.filter(i=>!seen.has(i.id)).map(it=>{const oi=items.indexOf(it); const wide=(uCats.has(it.category)?.5:0)+(it.tags.filter(t=>uTags.has(t)).length/Math.max(it.tags.length,1))*.5; const di=[pn[oi]||0,bn[oi]||0,vn[oi]||0]; const deep=Math.min(di[0]*.5+di[1]*.3+di[2]*.2,1); return {...it,score:wide*.5+deep*.5+qb(it),wide,deep};});
+    scored = items.filter(i=>!seen.has(i.id)).map(it=>{const oi=items.indexOf(it); const wide=(uCats.has(it.category) ? 0.5 : 0)+(it.tags.filter(t=>uTags.has(t)).length/Math.max(it.tags.length,1))*.5; const di=[pn[oi]||0,bn[oi]||0,vn[oi]||0]; const deep=Math.min(di[0]*.5+di[1]*.3+di[2]*.2,1); return {...it,score:wide*.5+deep*.5+qb(it),wide,deep};});
     viz = { type:'widedeep' };
   }
   scored.sort((a,b)=>b.score-a.score);

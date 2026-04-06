@@ -1,114 +1,114 @@
-# OmniResearch — Universal Open-Source Multi-Source Intelligence Agent
+# OmniResearch
 
-> Multi-source research agent — searches academic papers, web, GitHub, YouTube, podcasts, Reddit & news, then synthesizes findings into cited reports using Claude + sentence-transformers + cross-encoder reranking.
+**OmniResearch** is a multi-source intelligence research platform that aggregates and synthesizes information from academic papers, the open web, social media, news, GitHub, and video sources. It combines async fetching, ML-backed analysis, and LLM-driven synthesis into a single research workflow.
 
-OmniResearch aggregates information across academic papers, live web, GitHub repositories,
-YouTube transcripts, podcast audio, Reddit, Hacker News, and news outlets into a single
-research workflow. It uses Claude for query planning and report synthesis, sentence-transformers
-for semantic deduplication, and cross-encoder reranking to surface the most relevant results.
+## Features
 
-## What's Implemented
+- **Multi-source fetching** — Academic (OpenAlex, Semantic Scholar, arXiv, PubMed), web (Brave, Tavily, Wikipedia), Reddit and Hacker News, news APIs, GitHub repositories, YouTube transcripts, podcasts, and more.
+- **ML-powered analysis** — Sentence-transformer embeddings, sentiment analysis, heuristic credibility scoring, cross-encoder reranking, and optional modules (NER, summarization, topics) in `backend/ml/`.
+- **Celery async processing** — Background tasks with Redis as the broker; worker service defined in Docker Compose.
+- **ChromaDB vector store** — Client integration under `backend/db/` for semantic storage and retrieval (see configuration below).
+- **Research synthesis** — LangGraph-based agent pipeline (query planning, fetch, process, rerank, synthesis, export) in `backend/agents/`.
 
-### Backend (Python 3.11+ / FastAPI)
+## Tech stack
 
-**Multi-source async fetchers** — each fetcher is a real, working async module:
+| Layer | Technologies |
+|-------|----------------|
+| **Backend** | Python, FastAPI, Celery, Redis, ChromaDB, sentence-transformers, Anthropic SDK (Claude), LangGraph |
+| **Frontend** | Next.js 14, React 18, Tailwind CSS |
 
-| Fetcher | Sources | API/Method |
-|---------|---------|------------|
-| `academic.py` | OpenAlex, Semantic Scholar, arXiv, PubMed | REST APIs + `arxiv` + `Bio.Entrez` packages |
-| `web.py` | Brave Search, Tavily, Wikipedia | REST APIs |
-| `video.py` | YouTube | YouTube Data API v3 + `youtube-transcript-api` |
-| `audio.py` | Podcasts (ListenNotes) | ListenNotes API + local Whisper transcription |
-| `social.py` | Reddit, Hacker News | Reddit JSON search, Algolia HN API |
-| `news.py` | NewsAPI | NewsAPI v2 REST |
-| `github.py` | GitHub repositories | GitHub REST API |
-| `datasets.py` | Kaggle | Kaggle public API (unauthenticated) |
-| `huggingface.py` | HuggingFace models | HF Hub API (standalone, not wired into pipeline) |
+## Prerequisites
 
-**ML modules** (local model inference, no external ML APIs):
+- **Python** 3.10+ (project uses 3.11+ in practice; see `requirements.txt`)
+- **Node.js** 18+
+- **Docker** and **Docker Compose** — for Redis, ChromaDB, and optional full-stack containers
 
-| Module | Model | Status |
-|--------|-------|--------|
-| `embeddings.py` | BAAI/bge-large-en-v1.5 (sentence-transformers) | Active — used for deduplication |
-| `reranker.py` | cross-encoder/ms-marco-MiniLM-L-6-v2 | Active — used for semantic retrieval |
-| `credibility.py` | Heuristic scoring by source type + citations | Active — scores all documents |
-| `transcription.py` | openai-whisper (base model, local) | Active — used by audio fetcher |
-| `sentiment.py` | cardiffnlp/twitter-roberta-base-sentiment-latest | Implemented, tested, not in agent pipeline |
-| `summarizer.py` | facebook/bart-large-cnn | Implemented, not in agent pipeline |
-| `ner.py` | dslim/bert-base-NER | Implemented, not in agent pipeline |
-| `topic_model.py` | BERTopic + all-MiniLM-L6-v2 | Implemented, not in agent pipeline |
+## Quick start
 
-**Agent pipeline** (LangGraph StateGraph — defined but not invoked from API routes):
+### Option A — scripts
 
-1. `query_planner.py` — Claude claude-sonnet-4-6 decomposes query into sub-queries with target sources
-2. `source_fetcher.py` — Parallel async fetching across sub-queries × source types
-3. `content_processor.py` — Credibility scoring + embedding-based deduplication
-4. `semantic_retriever.py` — Cross-encoder reranking of top documents
-5. `synthesis_agent.py` — Claude claude-sonnet-4-6 streaming synthesis with [Source N] citations
-6. `export_generator.py` — CSV (pandas), PDF (reportlab), JSON, Markdown export
-
-**API routes** (FastAPI):
-
-- `POST /research` — Enqueues a Celery task (task body is a status stub; does not yet invoke the agent graph)
-- `GET /research/{id}/status` — Reads task status from Redis
-- `GET /research/{id}/export/{format}` — Returns sample export data (not yet wired to real results)
-- `GET /health` — Health check
-
-**Infrastructure**: Redis (task state), ChromaDB client (implemented but unused), Celery (broker wiring only).
-
-### Frontend (Next.js 14 placeholder)
-
-- Landing page, research interface, results view, and docs page scaffolded
-- Component stubs: QueryInput, ProgressPanel, StreamingReport, SentimentGauge, SourceMatrix, ExportPanel, SourceSidebar
-
-### Tests (22 passing)
-
-- Unit tests for fetchers (mocked HTTP), sentiment, embeddings/dedup, credibility scoring, CSV/PDF export
-- Integration test stubs for full pipeline and streaming (skipped without API keys)
-
-## Architecture Note
-
-The agent pipeline modules (fetchers, ML, LangGraph graph) are **fully implemented as library code** but the
-FastAPI service layer currently uses a stub Celery task. To run the full pipeline programmatically:
-
-```python
-from agents.graph import build_research_graph
-graph = build_research_graph()
-result = graph.invoke({"query": "your research question"})
-```
-
-## Stack
-
-- **Backend**: Python, FastAPI, Celery + Redis, LangGraph
-- **LLM**: Claude claude-sonnet-4-6 (Anthropic SDK) for planning + synthesis
-- **Embeddings**: BAAI/bge-large-en-v1.5 (sentence-transformers)
-- **Reranking**: cross-encoder/ms-marco-MiniLM-L-6-v2
-- **Transcription**: openai-whisper (local)
-- **Vector Store**: ChromaDB (client implemented, not yet integrated)
-- **Export**: pandas + reportlab (PDF) + openpyxl (Excel)
-- **Frontend**: Next.js 14, Tailwind CSS
-
-## Setup
+From the repository root:
 
 ```bash
-cd omniresearch
-python -m venv .venv && source .venv/bin/activate
-make install
-cp .env.example .env   # Fill in API keys
-make test
-make dev               # Docker Compose: API + Redis + ChromaDB + frontend
+./setup.sh && ./run.sh
 ```
 
-## Environment Variables
+`setup.sh` installs Python and frontend dependencies, ensures a `.env` file exists, and runs **`docker compose up --build -d`** (Redis, ChromaDB, API, Celery worker, and frontend per `docker-compose.yml`). `run.sh` starts **local** FastAPI and Next.js dev servers on ports 8000 and 3000 with `PYTHONPATH=.` from `backend/`. Those ports are the same ones the Compose `api` and `frontend` services use, so **do not run both at once**: either use the containerized stack after `setup.sh`, or stop the `api` and `frontend` containers (and free 8000/3000) before `./run.sh`.
+
+### Option B — manual
+
+1. Install dependencies: `pip install -r requirements.txt` and `(cd frontend && npm install)`.
+2. Copy `.env.example` to `.env` and set variables (see below).
+3. Start infrastructure: `docker compose up -d redis chromadb` (or the full stack from `docker-compose.yml`).
+4. **Run the backend from the `backend/` directory** with `PYTHONPATH` set so package imports resolve:
+
+   ```bash
+   cd backend
+   export PYTHONPATH=.
+   python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   ```
+
+5. In another terminal: `(cd frontend && npm run dev)`.
+
+You can also use `make install`, `make test`, and `make dev` from the repo root where applicable.
+
+## Environment variables
+
+Core variables (see `.env.example` for the full list, including optional search and media APIs):
 
 | Variable | Purpose |
 |----------|---------|
-| `ANTHROPIC_API_KEY` | Claude for query planning + synthesis |
-| `BRAVE_SEARCH_API_KEY` | Brave web search |
-| `TAVILY_API_KEY` | Tavily web search (alternative) |
-| `YOUTUBE_DATA_API_KEY` | YouTube metadata + transcripts |
-| `NEWS_API_KEY` | NewsAPI articles |
-| `LISTEN_NOTES_API_KEY` | Podcast search + audio |
-| `GITHUB_TOKEN` | Higher GitHub API rate limits |
-| `REDIS_URL` | Celery broker + task state |
-| `CHROMADB_URL` | Vector store (planned) |
+| `ANTHROPIC_API_KEY` | Claude for query planning and report synthesis |
+| `REDDIT_CLIENT_ID` | Reddit API (with `REDDIT_CLIENT_SECRET`) |
+| `REDDIT_CLIENT_SECRET` | Reddit API |
+| `CHROMADB_URL` | ChromaDB HTTP endpoint (e.g. `http://chromadb:8000` in Compose) |
+| `REDIS_URL` | Redis for Celery and task state (e.g. `redis://redis:6379/0`) |
+
+Additional keys in `.env.example` cover Brave/Tavily, YouTube, NewsAPI, Listen Notes, GitHub, Hugging Face, etc.
+
+## Project structure
+
+```
+omniresearch/
+├── backend/
+│   ├── main.py              # FastAPI application entry
+│   ├── agents/              # LangGraph pipeline: planner, fetch orchestration, synthesis, export
+│   ├── fetchers/            # Per-source async fetch modules
+│   ├── ml/                  # Embeddings, reranking, credibility, sentiment, etc.
+│   ├── db/                  # Redis and ChromaDB clients
+│   ├── api/                 # HTTP routes and middleware
+│   └── tasks/               # Celery app and tasks
+├── frontend/                # Next.js 14 app
+├── tests/                   # unit/ and integration/
+├── docker-compose.yml
+├── setup.sh
+└── run.sh
+```
+
+## Testing
+
+Tests use **pytest** (25+ tests across unit and integration modules). From the repo root:
+
+```bash
+make test
+```
+
+Or equivalently: `cd backend && python -m pytest ../tests/ -v` (with `PYTHONPATH=.` as in the Makefile).
+
+## Docker
+
+Build and run the stack (API, Celery worker, Redis, ChromaDB, frontend):
+
+```bash
+docker compose up --build
+```
+
+Or start only backing services: `docker compose up -d redis chromadb`.
+
+## Important note
+
+**Run the backend from inside the `backend/` directory** and set **`PYTHONPATH=.`** (as in `run.sh` and `make test`) so imports like `main`, `agents`, and `fetchers` resolve correctly. Celery commands should also use `backend/` as the working directory with the same `PYTHONPATH`.
+
+---
+
+*Implementation note:* The agent pipeline (fetchers, ML, LangGraph) is implemented as library code under `backend/`. Some API routes still use stub or partial wiring for Celery and exports; for programmatic use of the full graph, see `backend/agents/graph.py` and `build_research_graph()`.

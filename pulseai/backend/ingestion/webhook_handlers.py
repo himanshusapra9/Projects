@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 from backend.models.feedback import FeedbackItem
+
 
 def parse_intercom_webhook(payload: dict) -> FeedbackItem | None:
     data = payload.get("data", {}).get("item", {})
@@ -15,6 +17,7 @@ def parse_intercom_webhook(payload: dict) -> FeedbackItem | None:
         metadata={"type": data.get("type", ""), "tags": data.get("tags", [])},
     )
 
+
 def parse_zendesk_webhook(payload: dict) -> FeedbackItem | None:
     ticket = payload.get("ticket", {})
     text = ticket.get("description", "") or ticket.get("subject", "")
@@ -25,5 +28,8 @@ def parse_zendesk_webhook(payload: dict) -> FeedbackItem | None:
         text=text,
         source_platform="zendesk",
         author_id=str(ticket.get("requester_id", "")),
-        metadata={"priority": ticket.get("priority", ""), "status": ticket.get("status", "")},
+        metadata={
+            "priority": ticket.get("priority", ""),
+            "status": ticket.get("status", ""),
+        },
     )

@@ -1,4 +1,4 @@
-"""Tests for anomaly detection — Prophet baseline + Isolation Forest."""
+"""Tests for anomaly detection — rolling baseline + Isolation Forest."""
 import numpy as np
 import pandas as pd
 import pytest

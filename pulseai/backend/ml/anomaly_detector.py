@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import numpy as np
 from sklearn.ensemble import IsolationForest
+
 
 class FeedbackAnomalyDetector:
     def __init__(self, contamination: float = 0.05):

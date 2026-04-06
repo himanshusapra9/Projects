@@ -246,7 +246,6 @@ export class BehaviorTrackingService {
       source: event.type,
       confidence: 0.5,
       decayRate: 1 / this.signalHalfLifeMs,
-      examples: [event.id],
     });
 
     switch (event.type) {

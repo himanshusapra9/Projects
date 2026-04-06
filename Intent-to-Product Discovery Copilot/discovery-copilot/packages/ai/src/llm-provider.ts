@@ -45,6 +45,27 @@ export interface LLMProvider {
   embed(request: LLMEmbeddingRequest): Promise<LLMEmbeddingResponse>;
 }
 
+/** OpenAI chat/completions JSON shape (subset used by OpenAIProvider). */
+interface OpenAIChatCompletionJson {
+  choices: Array<{
+    message: { content: string };
+    finish_reason: string;
+  }>;
+  model: string;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+}
+
+/** OpenAI embeddings JSON shape (subset used by OpenAIProvider). */
+interface OpenAIEmbeddingsJson {
+  data: Array<{ embedding: number[] }>;
+  model: string;
+  usage: { total_tokens: number };
+}
+
 export class OpenAIProvider implements LLMProvider {
   constructor(private apiKey: string, private baseUrl?: string) {}
 
@@ -83,8 +104,9 @@ export class OpenAIProvider implements LLMProvider {
       throw new Error(`LLM API error ${response.status}: ${errorText}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as OpenAIChatCompletionJson;
     const latencyMs = Date.now() - startTime;
+    const finish = data.choices[0].finish_reason;
 
     return {
       content: data.choices[0].message.content,
@@ -94,7 +116,10 @@ export class OpenAIProvider implements LLMProvider {
         completionTokens: data.usage.completion_tokens,
         totalTokens: data.usage.total_tokens,
       },
-      finishReason: data.choices[0].finish_reason,
+      finishReason:
+        finish === 'stop' || finish === 'length' || finish === 'content_filter'
+          ? finish
+          : 'stop',
       latencyMs,
     };
   }
@@ -120,10 +145,10 @@ export class OpenAIProvider implements LLMProvider {
       throw new Error(`Embedding API error ${response.status}: ${errorText}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as OpenAIEmbeddingsJson;
 
     return {
-      embeddings: data.data.map((d: { embedding: number[] }) => d.embedding),
+      embeddings: data.data.map((d) => d.embedding),
       model: data.model,
       usage: { totalTokens: data.usage.total_tokens },
     };

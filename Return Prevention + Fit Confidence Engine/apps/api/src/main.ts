@@ -8,8 +8,11 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api/v1');
 
+  const corsOrigins = process.env.CORS_ORIGIN?.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? true,
+    origin: corsOrigins?.length ? corsOrigins : ['http://localhost:3000'],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization', 'x-api-key', 'Idempotency-Key'],
   });
@@ -39,7 +42,7 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  const port = parseInt(process.env.PORT ?? '3000', 10);
+  const port = parseInt(process.env.PORT ?? '3001', 10);
   await app.listen(port);
 }
 

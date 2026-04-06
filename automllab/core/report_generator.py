@@ -14,7 +14,13 @@ from models.research_plan import ResearchPlan
 class ReportGenerator:
     def __init__(self, plan: ResearchPlan):
         self.plan = plan
-        self.client = anthropic.Anthropic()
+        self._client: Optional[anthropic.Anthropic] = None
+
+    @property
+    def client(self) -> anthropic.Anthropic:
+        if self._client is None:
+            self._client = anthropic.Anthropic()
+        return self._client
 
     def generate(self, results: list[ExperimentResult]) -> Report:
         kept = [r for r in results if r.decision == "kept"]

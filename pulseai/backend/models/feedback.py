@@ -1,7 +1,9 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field
-from typing import Optional
+
 from datetime import datetime
+
+from pydantic import BaseModel, Field
+
 
 class FeedbackItem(BaseModel):
     id: str = Field(default="")
@@ -11,8 +13,15 @@ class FeedbackItem(BaseModel):
     author_name: str = Field(default="")
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
     metadata: dict = Field(default_factory=dict)
-    
-    model_config = {"json_schema_extra": {"examples": [{"text": "This product is amazing!", "source_platform": "intercom"}]}}
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {"text": "This product is amazing!", "source_platform": "intercom"}
+            ]
+        }
+    }
+
 
 class ProcessedFeedback(BaseModel):
     original: FeedbackItem
