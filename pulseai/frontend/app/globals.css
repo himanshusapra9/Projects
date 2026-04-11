@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-950 text-white antialiased;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-400 to-blue-400;
+  }
+  .glass {
+    @apply bg-white/[0.04] backdrop-blur-xl border border-white/[0.08];
+  }
+  .glass-hover {
+    @apply hover:bg-white/[0.07] hover:border-white/[0.14] transition-all duration-300;
+  }
+}

@@ -1,26 +1,25 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
+source .venv/bin/activate
 export PYTHONPATH="$ROOT"
 
-UVICORN_CMD=(uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000)
-if [ -x "$ROOT/.venv/bin/uvicorn" ]; then
-  UVICORN_CMD=("$ROOT/.venv/bin/uvicorn" backend.main:app --reload --host 127.0.0.1 --port 8000)
-fi
+echo "Starting PulseAI..."
+echo "  Backend  → http://127.0.0.1:8000"
+echo "  Frontend → http://localhost:3000"
+echo "  API Docs → http://127.0.0.1:8000/docs"
+echo ""
 
-cleanup() {
-  kill "${API_PID:-}" "${FRONTEND_PID:-}" 2>/dev/null || true
-}
-trap cleanup EXIT INT TERM
+# Start backend
+uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000 &
+BACKEND_PID=$!
 
-"${UVICORN_CMD[@]}" &
-API_PID=$!
-
-cd "$ROOT/frontend"
-npm run dev &
+# Start frontend
+cd frontend && npm run dev &
 FRONTEND_PID=$!
 
+trap "kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit" INT TERM
 wait
