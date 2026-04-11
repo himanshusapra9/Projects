@@ -1,83 +1,134 @@
 # DataSteward
 
-**Intelligent data pipeline health monitoring** with ML-powered anomaly detection, drift detection, duplicate finding, freshness prediction, incident modeling, and root cause analysis (Anthropic Claude).
+**Catch bad data before your CEO does.**
 
-DataSteward profiles tables, learns baselines, flags row-count and multivariate anomalies, detects distribution shift, surfaces near-duplicate records, predicts pipeline freshness, and can generate remediation-oriented root cause hypotheses. Core detection uses **Isolation Forest**, **sigma-based baselines (Z-score style)**, **Kolmogorov–Smirnov drift tests**, and **MinHash LSH**; optional **Claude** integration powers narrative root cause analysis.
+DataSteward is a self-hosted data quality monitoring platform for teams that need schema drift alerts, row-count anomaly detection, freshness SLA tracking, duplicate detection, and AI root cause analysis — without paying $50K/yr for enterprise tools.
+
+Built for analytics engineers and data engineers at 10–200 person companies who have Airflow/dbt and a warehouse but no budget for Monte Carlo.
 
 ---
 
-## Features
+## What it does
 
-| Area | Capabilities |
-|------|----------------|
-| **Anomaly detection** | Row-count baselines (mean ± 2.5σ), multivariate **Isolation Forest** (`scikit-learn`) |
-| **Drift detection** | Two-sample **KS tests** (`scipy.stats.ks_2samp`) between baseline and current distributions |
-| **Duplicate finding** | **MinHash LSH** (`datasketch`) for near-duplicate strings |
-| **Freshness prediction** | Rolling statistics over completion history; late-run detection |
-| **Incident management** | Pydantic `Incident` model (severity, remediation, lifecycle); integration tests for incident creation from signals |
-| **Root cause analysis** | **Anthropic Claude** via SDK; rule-based fallback for tests/offline use |
+| Capability | How |
+|---|---|
+| **Anomaly Detection** | Row-count baselines (mean ± 2.5σ) + Isolation Forest |
+| **Schema Drift Alerts** | Instant notification when columns change type or disappear |
+| **Distribution Drift** | Kolmogorov–Smirnov statistical tests (scipy) between baseline and current |
+| **Duplicate Detection** | MinHash LSH (datasketch) surfaces near-duplicate records automatically |
+| **Freshness SLA Tracking** | Define expected update windows; get alerted when breached |
+| **Incident Management** | Every anomaly logged with severity, context, timeline, remediation |
+| **AI Root Cause Analysis** | Claude-powered plain-English hypotheses — what broke, why, what to check first |
+
+---
+
+## Demo mode — zero config
+
+DataSteward ships with **demo mode** enabled by default. No database or API keys needed:
+
+```bash
+git clone https://github.com/himanshusapra9/Projects
+cd Projects/datasteward
+./setup.sh
+./run.sh
+# open http://localhost:3000
+```
+
+Demo mode pre-loads **3 tables** (orders, users, events) with **30 days** of row-count history, **3 injected anomalies**, and **2 open incidents** with pre-written root cause analysis. The full UI works immediately.
+
+---
+
+## Screenshots
+
+| Landing Page | Tables Dashboard | Incident RCA |
+|---|---|---|
+| Clean white landing page with 7 sections | Stat cards + searchable table list with health pills | Slide-in panel with streamed AI root cause |
 
 ---
 
 ## Tech stack
 
 | Layer | Technologies |
-|--------|----------------|
-| **Backend** | Python, **FastAPI**, **scikit-learn**, **scipy**, **pandas**, **datasketch**, **Anthropic** SDK |
-| **Frontend** | **Next.js 14**, **React**, **Tailwind CSS** |
+|---|---|
+| **Backend** | Python 3.10+, **FastAPI** 0.115, **scikit-learn**, **scipy**, **pandas**, **datasketch**, **Anthropic** SDK |
+| **Frontend** | **Next.js 14**, **React 18**, **Tailwind CSS**, **Recharts** |
 | **Ops** | **Docker Compose**, **PostgreSQL** 16 |
-
----
-
-## Prerequisites
-
-- **Python** 3.10+
-- **Node.js** 18+
-- **Docker** & Docker Compose plugin — optional for pure local dev, **required** for `./setup.sh` (that script brings up Postgres + API + UI in containers)
 
 ---
 
 ## Quick start
 
-### Option A — `./setup.sh` (and optional `./run.sh`)
+### Prerequisites
 
-1. **`./setup.sh`** — Checks `python3`, `npm`, and `docker compose`; creates `.venv`, installs `requirements.txt` and frontend deps; copies `.env.example` → `.env` if missing; runs **`docker compose up --build -d`** (Postgres, API on port **8000**, frontend on **3000**).
+- **Python** 3.10+
+- **Node.js** 18+
+- Docker is optional (only needed for `docker compose up`)
 
-2. **`./run.sh`** *(optional)* — Runs **uvicorn** and **Next.js dev** on `127.0.0.1:8000` and `127.0.0.1:3000` using the local venv. **Stop Docker Compose first** (`docker compose down`) so those ports are free; use this when you want hot-reload without running the app in containers.
-
-### Option B — Manual
+### Setup
 
 ```bash
-cd datasteward
-python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -U pip && pip install -r requirements.txt
+./setup.sh    # creates venv, installs deps, copies .env
+./run.sh      # starts backend (8000) + frontend (3000)
+```
+
+Then open **http://localhost:3000**.
+
+### Manual setup
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 cd frontend && npm install && cd ..
 cp .env.example .env
-# edit .env — at least ANTHROPIC_API_KEY if using Claude RCA
-make test
+./run.sh
 ```
-
-Run locally (after `export PYTHONPATH="$(pwd)"` from repo root):
-
-```bash
-uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
-# separate terminal: cd frontend && npm run dev
-```
-
-Or use **`./run.sh`** from the repo root (expects `.venv` and runs backend + frontend together).
 
 ---
 
 ## Environment variables
 
-Copy **`.env.example`** to **`.env`** and set as needed:
+Copy `.env.example` → `.env`. Key variables:
 
-| Variable | Purpose |
-|----------|---------|
-| `ANTHROPIC_API_KEY` | Claude root cause analysis (`backend/ml/root_cause_analyzer.py`) |
-| `DATABASE_URL` | PostgreSQL connection (e.g. Compose default in `.env.example`) |
-| `SNOWFLAKE_*`, `BIGQUERY_*`, `REDSHIFT_*` | Reserved for future SQL connectors |
-| `AIRFLOW_*`, `DBT_CLOUD_API_KEY`, `SLACK_BOT_TOKEN`, `PAGERDUTY_API_KEY` | Reserved for orchestration / alerting integrations |
+| Variable | Purpose | Default |
+|---|---|---|
+| `DEMO_MODE` | Load synthetic sample data (no DB needed) | `true` |
+| `ANTHROPIC_API_KEY` | Enable Claude-powered root cause analysis | *(disabled)* |
+| `DATABASE_URL` | PostgreSQL connection (optional; in-memory if unset) | `postgresql://...` |
+| `APP_ENV` | Environment identifier | `development` |
+
+Set `DEMO_MODE=false` to disable sample data and use real database connections.
+
+---
+
+## API endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check with version, tables, incidents, Claude status |
+| `GET` | `/api/v1/tables` | List all registered tables |
+| `POST` | `/api/v1/tables/register` | Register a new table for monitoring |
+| `GET` | `/api/v1/tables/{id}` | Full table detail (columns, drift, anomalies, duplicates) |
+| `POST` | `/api/v1/tables/{id}/profile` | Trigger immediate profiling |
+| `GET` | `/api/v1/tables/{id}/history` | Last 30 profiling results |
+| `GET` | `/api/v1/incidents` | List incidents (filter by status, severity) |
+| `PATCH` | `/api/v1/incidents/{id}` | Update incident status/notes |
+| `GET` | `/api/v1/rca/stream` | SSE stream of AI root cause analysis |
+
+Interactive API docs at **http://localhost:8000/docs** (Swagger UI).
+
+---
+
+## Frontend pages
+
+| Route | Page |
+|---|---|
+| `/` | Landing page — 7 sections: hero, problem, how it works, features, pricing, quick start, footer |
+| `/tables` | Monitoring dashboard — stat cards, searchable table list, register modal, empty state onboarding |
+| `/tables/[id]` | Table detail — 6 tabs: Overview (chart), Column Stats, Drift, Anomalies, Duplicates, Incidents |
+| `/incidents` | Incident list — filter by status/severity, slide-in RCA panel with Mark Resolved / Escalate / Snooze |
+| `/root-cause` | Freeform AI analysis — paste an error or describe an anomaly, get streamed analysis |
+| `/freshness` | Freshness SLA tracking across all tables |
+| `/duplicates` | Duplicate detection index |
 
 ---
 
@@ -86,20 +137,33 @@ Copy **`.env.example`** to **`.env`** and set as needed:
 ```
 datasteward/
 ├── backend/
-│   ├── ml/              # Anomaly, drift, duplicates, freshness, root cause
-│   ├── monitoring/      # Profiling, baseline manager
-│   ├── models/          # Pydantic models (incidents, profiles, quality)
-│   ├── api/             # Route modules
-│   ├── main.py          # FastAPI app
+│   ├── main.py              # FastAPI app — all endpoints
+│   ├── config.py             # Environment config helpers
+│   ├── demo/
+│   │   └── seed_data.py      # Deterministic demo data generator
+│   ├── ml/                   # Anomaly, drift, duplicates, freshness, root cause
+│   ├── monitoring/           # Profiling, baseline manager
+│   ├── models/               # Pydantic models (incidents, profiles, quality)
 │   └── Dockerfile
-├── frontend/            # Next.js 14 app
-├── tests/
-│   ├── unit/
-│   └── integration/
+├── frontend/
+│   ├── app/
+│   │   ├── page.tsx           # Landing page (7 sections)
+│   │   ├── layout.tsx         # Root layout with Inter font
+│   │   ├── tables/            # Tables list + [id] detail page
+│   │   ├── incidents/         # Incident list + RCA panel
+│   │   ├── root-cause/        # Freeform AI analysis
+│   │   ├── freshness/         # Freshness tracking
+│   │   └── duplicates/        # Duplicate detection
+│   ├── components/
+│   │   ├── AppNav.tsx         # Top navigation bar
+│   │   ├── StatCard.tsx       # Metric card component
+│   │   ├── SeverityBadge.tsx  # Colored severity pill
+│   │   ├── RowCountChart.tsx  # Recharts line chart with baseline band
+│   │   └── IncidentCard.tsx   # Incident summary card
+│   └── Dockerfile
+├── tests/                     # 25 pytest cases (unit + integration)
 ├── docker-compose.yml
-├── setup.sh
-├── run.sh
-├── Makefile
+├── setup.sh / run.sh
 ├── requirements.txt
 └── .env.example
 ```
@@ -113,28 +177,20 @@ make test
 # or: python -m pytest tests/ -v --tb=short
 ```
 
-The suite is **25** pytest cases covering anomaly, drift, duplicate, freshness, profiler, and incident flows (`tests/unit/`, `tests/integration/`).
+**25 pytest cases** covering anomaly detection, drift detection, duplicate finding, freshness prediction, profiling, and incident creation flows. All tests run without a database or API keys.
 
 ---
 
 ## Docker
 
-From the repo root (after `.env` exists):
-
 ```bash
 docker compose up --build
 ```
-
-Detached (as `setup.sh` does): `docker compose up --build -d`
 
 Services: **postgres** (5432), **api** (8000), **frontend** (3000).
 
 ---
 
-## Implementation notes
+## Pricing model
 
-- **HTTP API** (`backend/main.py`): health + placeholder list/score/profile endpoints; core value is in **library-style** ML/monitoring code and tests.
-- **Facebook Prophet** appears in older docs but is **not** used; row-count behavior uses statistical baselines, not Prophet.
-- **Connectors / Slack / PagerDuty / Airflow**: scaffolding only where present; not fully implemented.
-
-Run `make test` to verify behavior after changes.
+DataSteward is **free and self-hosted**. AI root cause analysis requires your own Anthropic API key (bring-your-own-key model). All ML detectors, incident management, and the full UI work without any API key.

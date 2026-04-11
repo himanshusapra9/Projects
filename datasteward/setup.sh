@@ -1,45 +1,55 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT"
 
-echo "==> Checking prerequisites..."
-for cmd in python3 docker npm; do
-  if ! command -v "$cmd" &>/dev/null; then
-    echo "Missing required command: $cmd" >&2
-    exit 1
-  fi
-done
-if ! docker compose version &>/dev/null; then
-  echo "Docker Compose plugin is required (docker compose)." >&2
-  exit 1
-fi
+echo ""
+echo "┌─────────────────────────────┐"
+echo "│     DataSteward Setup       │"
+echo "└─────────────────────────────┘"
+echo ""
 
-echo "==> Creating Python virtualenv and installing dependencies..."
-if [[ ! -d .venv ]]; then
+# Python
+if ! command -v python3 &>/dev/null; then
+  echo "✗ python3 not found. Install Python 3.10+"; exit 1
+fi
+echo "✓ python3 $(python3 --version 2>&1)"
+
+# Node
+if ! command -v node &>/dev/null; then
+  echo "✗ node not found. Install Node.js 18+"; exit 1
+fi
+echo "✓ node $(node --version)"
+
+# Virtualenv
+if [ ! -d ".venv" ]; then
   python3 -m venv .venv
+  echo "✓ Created .venv"
 fi
-# shellcheck source=/dev/null
 source .venv/bin/activate
-pip install -U pip
-pip install -r requirements.txt
+pip install -U pip -q
+pip install -r requirements.txt -q
+echo "✓ Python dependencies installed"
 
-echo "==> Installing frontend dependencies..."
-cd frontend
-npm install
-cd "$ROOT"
-
-if [[ ! -f .env ]]; then
-  if [[ -f .env.example ]]; then
-    echo "==> Copying .env.example -> .env"
-    cp .env.example .env
-  else
-    echo "Warning: no .env.example found; create .env manually if needed." >&2
-  fi
+# .env
+if [ ! -f ".env" ]; then
+  cp .env.example .env
+  echo "✓ Created .env (DEMO_MODE=true by default)"
 fi
 
-echo "==> Starting Docker Compose (postgres, api, frontend)..."
-docker compose up --build -d
+# Frontend
+cd frontend && npm install --silent && cd ..
+echo "✓ Frontend dependencies installed"
 
-echo "==> Done. Services: API http://localhost:8000, frontend http://localhost:3000"
+echo ""
+echo "┌─────────────────────────────────────────┐"
+echo "│  Setup complete!                         │"
+echo "│                                          │"
+echo "│  Run: ./run.sh                           │"
+echo "│  Then open: http://localhost:3000        │"
+echo "│                                          │"
+echo "│  Demo mode is ON — no database needed.  │"
+echo "│  Add ANTHROPIC_API_KEY for AI analysis. │"
+echo "└─────────────────────────────────────────┘"
+echo ""
